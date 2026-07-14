@@ -1,0 +1,299 @@
+import Observation
+import SwiftData
+import SwiftUI
+
+@MainActor
+@Observable
+final class AppBootstrap {
+    enum State {
+        case ready(AppDependencies)
+        case failure
+    }
+
+    private(set) var state: State
+    private let isUITesting: Bool
+    private let seedsLargeLibrary: Bool
+    private let seedsFilterLibrary: Bool
+
+    init(
+        isUITesting: Bool = ProcessInfo.processInfo.arguments.contains("-ui-testing"),
+        seedsLargeLibrary: Bool = ProcessInfo.processInfo.arguments.contains("-ui-testing-large-library"),
+        seedsFilterLibrary: Bool = ProcessInfo.processInfo.arguments.contains("-ui-testing-filter-library")
+    ) {
+        self.isUITesting = isUITesting
+        self.seedsLargeLibrary = seedsLargeLibrary
+        self.seedsFilterLibrary = seedsFilterLibrary
+        state = Self.makeState(
+            isUITesting: isUITesting,
+            seedsLargeLibrary: seedsLargeLibrary,
+            seedsFilterLibrary: seedsFilterLibrary
+        )
+    }
+
+    func retry() {
+        state = Self.makeState(
+            isUITesting: isUITesting,
+            seedsLargeLibrary: seedsLargeLibrary,
+            seedsFilterLibrary: seedsFilterLibrary
+        )
+    }
+
+    private static func makeState(
+        isUITesting: Bool,
+        seedsLargeLibrary: Bool,
+        seedsFilterLibrary: Bool
+    ) -> State {
+        do {
+            let container = try PersistenceController.makeContainer(inMemory: isUITesting)
+            if seedsLargeLibrary {
+                try seedLargeLibrary(in: container)
+            } else if seedsFilterLibrary {
+                try seedFilterLibrary(in: container)
+            }
+            let repository = SwiftDataBookRepository(modelContainer: container)
+            let failsTagWrites = ProcessInfo.processInfo.arguments.contains("-ui-testing-fail-tag-save")
+            let bookRepository: any BookRepository = if isUITesting, failsTagWrites {
+                UITestTagWriteFailureRepository(base: repository)
+            } else {
+                repository
+            }
+            let fileStore = try ApplicationSupportBookFileStore(
+                rootURL: isUITesting ? uiTestingFileRoot : nil
+            )
+            let publicationService = ReadiumPublicationService()
+            let importCoordinator = ImportCoordinator(
+                repository: bookRepository,
+                fileStore: fileStore,
+                publicationService: publicationService
+            )
+            return .ready(
+                AppDependencies(
+                    modelContainer: container,
+                    bookRepository: bookRepository,
+                    readingProgressStore: repository,
+                    bookFileStore: fileStore,
+                    publicationService: publicationService,
+                    importCoordinator: importCoordinator
+                )
+            )
+        } catch {
+            return .failure
+        }
+    }
+
+    private static var uiTestingFileRoot: URL {
+        FileManager.default.temporaryDirectory.appending(
+            path: "FastReader-UITesting-\(ProcessInfo.processInfo.processIdentifier)",
+            directoryHint: .isDirectory
+        )
+    }
+
+    private static func seedLargeLibrary(in container: ModelContainer) throws {
+        let context = container.mainContext
+        let importedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        for index in 1 ... 500 {
+            let status = BookStatus.allCases[(index - 1) % BookStatus.allCases.count]
+            let record = BookRecord(
+                id: UUID(),
+                contentHash: String(format: "ui-test-%04d", index),
+                title: String(format: "Book %03d", index),
+                authorsDisplay: String(format: "Author %02d", index % 25),
+                mediaType: "application/epub+zip",
+                layout: .reflowable,
+                fileRelativePath: String(format: "Books/ui-test-%04d.epub", index),
+                coverRelativePath: nil,
+                fileByteCount: 1,
+                importedAt: importedAt.addingTimeInterval(TimeInterval(-index)),
+                status: status
+            )
+            record.progress = Double(index % 101) / 100
+            context.insert(record)
+        }
+        try context.save()
+    }
+
+    private static func seedFilterLibrary(in container: ModelContainer) throws {
+        let context = container.mainContext
+        let importedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let tagIDs = FilterSeedTagIDs(fiction: UUID(), focus: UUID(), rare: UUID())
+        for tag in filterSeedTags(ids: tagIDs) {
+            context.insert(
+                TagRecord(
+                    id: tag.id,
+                    canonicalName: tag.canonicalName,
+                    displayName: tag.displayName,
+                    createdAt: importedAt
+                )
+            )
+        }
+
+        for (index, book) in filterSeedBooks(ids: tagIDs).enumerated() {
+            insert(book, index: index, importedAt: importedAt, into: context)
+        }
+        try context.save()
+    }
+
+    private static func filterSeedTags(ids: FilterSeedTagIDs) -> [FilterSeedTag] {
+        [
+            FilterSeedTag(id: ids.fiction, canonicalName: "fiction", displayName: "Fiction"),
+            FilterSeedTag(id: ids.focus, canonicalName: "focus", displayName: "Focus"),
+            FilterSeedTag(id: ids.rare, canonicalName: "rare", displayName: "Rare")
+        ]
+    }
+
+    private static func filterSeedBooks(ids: FilterSeedTagIDs) -> [FilterSeedBook] {
+        [
+            FilterSeedBook(
+                title: "Alpha Guide",
+                status: .reading,
+                progress: 0.42,
+                tagIDs: [ids.fiction, ids.focus]
+            ),
+            FilterSeedBook(
+                title: "Beta Notes for Focused Readers",
+                status: .reading,
+                progress: 0.18,
+                tagIDs: [ids.fiction]
+            ),
+            FilterSeedBook(title: "Gamma Story", status: .done, progress: 1, tagIDs: [ids.focus]),
+            FilterSeedBook(
+                title: "Delta Manual",
+                status: .new,
+                progress: 0,
+                tagIDs: [ids.fiction, ids.focus, ids.rare]
+            )
+        ]
+    }
+
+    private static func insert(
+        _ book: FilterSeedBook,
+        index: Int,
+        importedAt: Date,
+        into context: ModelContext
+    ) {
+        let bookID = UUID()
+        let timestamp = importedAt.addingTimeInterval(TimeInterval(-index))
+        let record = BookRecord(
+            id: bookID,
+            contentHash: "ui-filter-\(index)",
+            title: book.title,
+            authorsDisplay: "Fixture Author",
+            mediaType: "application/epub+zip",
+            layout: .reflowable,
+            fileRelativePath: "Books/ui-filter-\(index).epub",
+            coverRelativePath: nil,
+            fileByteCount: 1,
+            importedAt: timestamp,
+            status: book.status
+        )
+        record.progress = book.progress
+        context.insert(record)
+        for tagID in book.tagIDs {
+            context.insert(BookTagRecord(id: UUID(), bookID: bookID, tagID: tagID, createdAt: timestamp))
+        }
+    }
+}
+
+private struct FilterSeedTagIDs {
+    let fiction: UUID
+    let focus: UUID
+    let rare: UUID
+}
+
+private struct FilterSeedTag {
+    let id: UUID
+    let canonicalName: String
+    let displayName: String
+}
+
+private struct FilterSeedBook {
+    let title: String
+    let status: BookStatus
+    let progress: Double
+    let tagIDs: [UUID]
+}
+
+@MainActor
+private final class UITestTagWriteFailureRepository: BookRepository {
+    enum Failure: Error {
+        case rejected
+    }
+
+    private let base: any BookRepository
+
+    init(base: any BookRepository) {
+        self.base = base
+    }
+
+    func books(matching filter: LibraryFilter) throws -> [Book] {
+        try base.books(matching: filter)
+    }
+
+    func book(id: UUID) throws -> Book? {
+        try base.book(id: id)
+    }
+
+    func book(contentHash: String) throws -> Book? {
+        try base.book(contentHash: contentHash)
+    }
+
+    func tags() throws -> [Tag] {
+        try base.tags()
+    }
+
+    func insert(_ publication: ImportedPublication, importedAt: Date) throws -> Book {
+        try base.insert(publication, importedAt: importedAt)
+    }
+
+    func setStatus(_ status: BookStatus, for bookID: UUID, at date: Date) throws {
+        try base.setStatus(status, for: bookID, at: date)
+    }
+
+    func setTags(_: [String], for _: UUID, at _: Date) throws {
+        throw Failure.rejected
+    }
+
+    func delete(bookID: UUID, at date: Date) throws -> Book {
+        try base.delete(bookID: bookID, at: date)
+    }
+}
+
+@MainActor
+struct AppDependencies {
+    let modelContainer: ModelContainer
+    let bookRepository: any BookRepository
+    let readingProgressStore: any ReadingProgressStore
+    let bookFileStore: any BookFileStore
+    let publicationService: any PublicationService
+    let importCoordinator: ImportCoordinator
+}
+
+struct BootstrapView: View {
+    let bootstrap: AppBootstrap
+
+    var body: some View {
+        switch bootstrap.state {
+        case let .ready(dependencies):
+            RootView(
+                repository: dependencies.bookRepository,
+                progressStore: dependencies.readingProgressStore,
+                fileStore: dependencies.bookFileStore,
+                publicationService: dependencies.publicationService,
+                importCoordinator: dependencies.importCoordinator
+            )
+            .modelContainer(dependencies.modelContainer)
+        case .failure:
+            ContentUnavailableView {
+                Label("library.startup.error.title", systemImage: "externaldrive.badge.exclamationmark")
+            } description: {
+                Text("library.startup.error.message")
+            } actions: {
+                Button("action.retry") {
+                    bootstrap.retry()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .editorialCanvas()
+        }
+    }
+}

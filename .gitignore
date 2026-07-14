@@ -1,0 +1,21 @@
+# Task worktrees
+.worktrees/
+
+# Xcode user and build state
+DerivedData/
+*.xcresult
+*.xcarchive
+*.xccheckout
+*.xcscmblueprint
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Generated local configuration
+Local.xcconfig
+
+# macOS
+.DS_Store

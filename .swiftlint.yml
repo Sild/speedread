@@ -1,0 +1,65 @@
+strict: true
+
+included:
+  - FastReader
+  - FastReaderTests
+  - FastReaderUITests
+
+excluded:
+  - FastReader.xcodeproj
+
+opt_in_rules:
+  - array_init
+  - closure_end_indentation
+  - collection_alignment
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - empty_count
+  - empty_string
+  - explicit_init
+  - fallthrough
+  - fatal_error_message
+  - first_where
+  - force_cast
+  - force_try
+  - force_unwrapping
+  - identical_operands
+  - last_where
+  - legacy_multiple
+  - modifier_order
+  - operator_usage_whitespace
+  - overridden_super_call
+  - prefer_zero_over_explicit_init
+  - redundant_nil_coalescing
+  - sorted_first_last
+  - toggle_bool
+  - unneeded_parentheses_in_closure_argument
+  - vertical_parameter_alignment_on_call
+
+line_length:
+  warning: 110
+  error: 130
+  ignores_comments: true
+  ignores_urls: true
+
+type_body_length:
+  warning: 300
+  error: 400
+
+file_length:
+  warning: 500
+  error: 700
+
+identifier_name:
+  min_length:
+    warning: 2
+  excluded:
+    - id
+
+custom_rules:
+  no_process_termination:
+    included: FastReader/.*\.swift
+    name: Process-terminating control flow
+    regex: '(fatalError|preconditionFailure|assertionFailure)\s*\('
+    message: Production code must surface a recoverable typed error.
+    severity: error

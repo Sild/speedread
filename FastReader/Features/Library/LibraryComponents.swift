@@ -1,0 +1,414 @@
+import SwiftUI
+import UniformTypeIdentifiers
+
+struct BookCard: View {
+    let book: Book
+    let fileStore: any BookFileStore
+
+    @State private var coverImage: UIImage?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: FastReaderSpacing.small) {
+            cover
+            Text(book.title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(2, reservesSpace: true)
+            Text(book.authorsDisplay.isEmpty ? " " : book.authorsDisplay)
+                .font(.caption)
+                .foregroundStyle(FastReaderPalette.secondaryText)
+                .lineLimit(1, reservesSpace: true)
+                .accessibilityHidden(book.authorsDisplay.isEmpty)
+            ProgressView(value: book.progress)
+                .tint(FastReaderPalette.progress)
+                .padding(.horizontal, FastReaderSpacing.xSmall)
+            status
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(book.title), \(book.authorsDisplay)")
+        .task(id: book.coverRelativePath) {
+            await loadCover()
+        }
+    }
+
+    private var cover: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: FastReaderRadius.card)
+                .fill(FastReaderPalette.raised)
+            if let coverImage {
+                Image(uiImage: coverImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "book.closed")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(FastReaderPalette.secondaryText)
+            }
+        }
+        .aspectRatio(0.68, contentMode: .fit)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: FastReaderRadius.card))
+    }
+
+    private var status: some View {
+        HStack {
+            Text(book.status.localizedName)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer()
+            Text(book.progress, format: .percent.precision(.fractionLength(0)))
+                .monospacedDigit()
+        }
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(FastReaderPalette.secondaryText)
+    }
+
+    private func loadCover() async {
+        guard let coverPath = book.coverRelativePath,
+              let data = try? await fileStore.data(relativePath: coverPath)
+        else {
+            coverImage = nil
+            return
+        }
+        coverImage = UIImage(data: data)
+    }
+}
+
+struct FilterPill: View {
+    let title: String
+    let count: Int
+    let selected: Bool
+    var disabled = false
+    let accessibilityIdentifier: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: FastReaderSpacing.xSmall) {
+                Text(title)
+                Text(count, format: .number)
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(.thinMaterial, in: Capsule())
+            }
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, FastReaderSpacing.medium)
+            .padding(.vertical, FastReaderSpacing.small)
+            .background(selected ? FastReaderPalette.focus : FastReaderPalette.raised)
+            .foregroundStyle(selected ? FastReaderPalette.onFocus : FastReaderPalette.primaryText)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.45 : 1)
+        .accessibilityValue(Text(count, format: .number))
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
+struct TagSelectionDraft: Equatable {
+    struct Option: Identifiable, Equatable {
+        let canonicalName: String
+        let displayName: String
+
+        var id: String {
+            canonicalName
+        }
+    }
+
+    var query = ""
+
+    private(set) var optionsByCanonicalName: [String: Option]
+    private(set) var selectedCanonicalNames: Set<String>
+    private let initialSelectedCanonicalNames: Set<String>
+
+    init(selectedTags: [Tag], availableTags: [Tag]) {
+        var options: [String: Option] = [:]
+        for tag in availableTags + selectedTags where options[tag.canonicalName] == nil {
+            options[tag.canonicalName] = Option(
+                canonicalName: tag.canonicalName,
+                displayName: tag.displayName
+            )
+        }
+        let selectedNames = Set(selectedTags.map(\.canonicalName))
+        optionsByCanonicalName = options
+        selectedCanonicalNames = selectedNames
+        initialSelectedCanonicalNames = selectedNames
+    }
+
+    var hasQuery: Bool {
+        !canonicalQuery.isEmpty
+    }
+
+    var hasChanges: Bool {
+        selectedCanonicalNames != initialSelectedCanonicalNames
+    }
+
+    var selectedOptions: [Option] {
+        sortedOptions(optionsByCanonicalName.values.filter(isSelected))
+    }
+
+    var availableOptions: [Option] {
+        sortedOptions(optionsByCanonicalName.values.filter { !isSelected($0) })
+    }
+
+    var searchResults: [Option] {
+        guard hasQuery else {
+            return []
+        }
+        return sortedOptions(
+            optionsByCanonicalName.values.filter { option in
+                option.canonicalName.contains(canonicalQuery)
+            }
+        )
+    }
+
+    var creationDisplayName: String? {
+        let displayName = trimmedQuery
+        guard !canonicalQuery.isEmpty, optionsByCanonicalName[canonicalQuery] == nil else {
+            return nil
+        }
+        return displayName
+    }
+
+    var selectedDisplayNames: [String] {
+        selectedOptions.map(\.displayName)
+    }
+
+    func isSelected(_ option: Option) -> Bool {
+        selectedCanonicalNames.contains(option.canonicalName)
+    }
+
+    mutating func toggle(_ option: Option) {
+        if isSelected(option) {
+            selectedCanonicalNames.remove(option.canonicalName)
+        } else {
+            selectedCanonicalNames.insert(option.canonicalName)
+        }
+    }
+
+    mutating func selectOrCreateQuery() {
+        guard !canonicalQuery.isEmpty else {
+            return
+        }
+        if optionsByCanonicalName[canonicalQuery] == nil {
+            optionsByCanonicalName[canonicalQuery] = Option(
+                canonicalName: canonicalQuery,
+                displayName: trimmedQuery
+            )
+        }
+        selectedCanonicalNames.insert(canonicalQuery)
+        query = ""
+    }
+
+    private var trimmedQuery: String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canonicalQuery: String {
+        TagNormalizer.canonicalize(trimmedQuery)
+    }
+
+    private func sortedOptions(_ options: some Sequence<Option>) -> [Option] {
+        options.sorted { left, right in
+            let comparison = left.displayName.localizedStandardCompare(right.displayName)
+            if comparison == .orderedSame {
+                return left.canonicalName < right.canonicalName
+            }
+            return comparison == .orderedAscending
+        }
+    }
+}
+
+struct TagEditorView: View {
+    let book: Book
+    let onSave: ([String]) throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: TagSelectionDraft
+    @State private var saveFailurePresented = false
+
+    init(
+        book: Book,
+        availableTags: [Tag],
+        onSave: @escaping ([String]) throws -> Void
+    ) {
+        self.book = book
+        self.onSave = onSave
+        _draft = State(
+            initialValue: TagSelectionDraft(
+                selectedTags: book.tags,
+                availableTags: availableTags
+            )
+        )
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                searchSection
+                if draft.hasQuery {
+                    resultsSection
+                } else {
+                    selectedSection
+                    availableSection
+                }
+            }
+            .navigationTitle("library.tags.edit")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("action.cancel") {
+                        dismiss()
+                    }
+                    .accessibilityIdentifier("library.tags.cancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("action.save") {
+                        save()
+                    }
+                    .disabled(!draft.hasChanges)
+                    .accessibilityIdentifier("library.tags.save")
+                }
+            }
+            .alert("library.tags.save.error.title", isPresented: $saveFailurePresented) {
+                Button("action.ok") {}
+            } message: {
+                Text("library.tags.save.error.message")
+            }
+        }
+    }
+
+    private var searchSection: some View {
+        Section {
+            HStack(spacing: FastReaderSpacing.small) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(FastReaderPalette.secondaryText)
+                    .accessibilityHidden(true)
+                TextField("library.tags.search.placeholder", text: $draft.query)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        draft.selectOrCreateQuery()
+                    }
+                    .accessibilityIdentifier("library.tags.search")
+                if !draft.query.isEmpty {
+                    Button {
+                        draft.query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(FastReaderPalette.secondaryText)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("library.tags.search.clear")
+                }
+            }
+        } header: {
+            Text("library.tags.find_or_create")
+        } footer: {
+            Text("library.tags.guidance")
+        }
+    }
+
+    private var resultsSection: some View {
+        Section("library.tags.results") {
+            if let displayName = draft.creationDisplayName {
+                Button {
+                    draft.selectOrCreateQuery()
+                } label: {
+                    Label(createTitle(displayName), systemImage: "plus.circle.fill")
+                }
+                .accessibilityIdentifier("library.tags.create")
+            }
+            ForEach(draft.searchResults) { option in
+                tagRow(option, clearsQuery: true)
+            }
+        }
+    }
+
+    private var selectedSection: some View {
+        Section("library.tags.selected") {
+            if draft.selectedOptions.isEmpty {
+                Text("library.tags.none.selected")
+                    .foregroundStyle(FastReaderPalette.secondaryText)
+            } else {
+                ForEach(draft.selectedOptions) { option in
+                    tagRow(option)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var availableSection: some View {
+        if !draft.availableOptions.isEmpty {
+            Section("library.tags.available") {
+                ForEach(draft.availableOptions) { option in
+                    tagRow(option)
+                }
+            }
+        } else if draft.selectedOptions.isEmpty {
+            Section("library.tags.available") {
+                Text("library.tags.none.available.editor")
+                    .foregroundStyle(FastReaderPalette.secondaryText)
+            }
+        }
+    }
+
+    private func tagRow(
+        _ option: TagSelectionDraft.Option,
+        clearsQuery: Bool = false
+    ) -> some View {
+        let selected = draft.isSelected(option)
+        return Button {
+            draft.toggle(option)
+            if clearsQuery {
+                draft.query = ""
+            }
+        } label: {
+            HStack {
+                Image(systemName: "tag")
+                    .accessibilityHidden(true)
+                Text(option.displayName)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                if selected {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(FastReaderPalette.focus)
+                        .accessibilityHidden(true)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(
+            selected
+                ? Text("library.tags.selection.selected")
+                : Text("library.tags.selection.not_selected")
+        )
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier("library.tags.option.\(option.canonicalName)")
+    }
+
+    private func createTitle(_ displayName: String) -> String {
+        String.localizedStringWithFormat(
+            String(localized: "library.tags.create"),
+            displayName
+        )
+    }
+
+    private func save() {
+        do {
+            try onSave(draft.selectedDisplayNames)
+            dismiss()
+        } catch {
+            saveFailurePresented = true
+        }
+    }
+}
+
+extension UTType {
+    static var fastReaderEPUB: UTType {
+        UTType(filenameExtension: "epub") ?? UTType(importedAs: "org.idpf.epub-container")
+    }
+}
