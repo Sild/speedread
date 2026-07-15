@@ -14,16 +14,22 @@ struct ReadingPosition: Codable, Equatable, Sendable {
     func updatingFromRegularReader(
         locatorJSON newLocatorJSON: String,
         totalProgression newTotalProgression: Double,
+        preserveSpeedCursor: Bool = false,
         at date: Date
     ) -> ReadingPosition {
         let preservesSpeedCursor = speedElementID != nil
             && speedTokenOffset != nil
-            && ReadingLocatorContinuity.refersToSameContent(
-                locatorJSON,
-                newLocatorJSON
+            && (
+                preserveSpeedCursor
+                    || ReadingLocatorContinuity.refersToSameContent(
+                        locatorJSON,
+                        newLocatorJSON,
+                        firstTotalProgression: totalProgression,
+                        secondTotalProgression: newTotalProgression
+                    )
             )
         return ReadingPosition(
-            locatorJSON: newLocatorJSON,
+            locatorJSON: preservesSpeedCursor ? locatorJSON : newLocatorJSON,
             totalProgression: newTotalProgression,
             speedElementID: preservesSpeedCursor ? speedElementID : nil,
             speedTokenOffset: preservesSpeedCursor ? speedTokenOffset : nil,
@@ -35,7 +41,12 @@ struct ReadingPosition: Codable, Equatable, Sendable {
 private enum ReadingLocatorContinuity {
     private static let progressionTolerance = 0.000_001
 
-    static func refersToSameContent(_ firstJSON: String, _ secondJSON: String) -> Bool {
+    static func refersToSameContent(
+        _ firstJSON: String,
+        _ secondJSON: String,
+        firstTotalProgression: Double,
+        secondTotalProgression: Double
+    ) -> Bool {
         guard let first = LocatorKey(json: firstJSON),
               let second = LocatorKey(json: secondJSON)
         else {
@@ -49,17 +60,9 @@ private enum ReadingLocatorContinuity {
         if selectorsMatch {
             return true
         }
-        let isNavigatorNormalization = first.cssSelector != nil
-            && second.cssSelector == nil
-            && numbersMatch(first.position, second.position)
-            && second.progression == 0
-            && second.totalProgression == 0
-        if isNavigatorNormalization {
-            return true
-        }
         guard numbersMatch(first.position, second.position),
               numbersMatch(first.progression, second.progression),
-              numbersMatch(first.totalProgression, second.totalProgression)
+              numbersMatch(firstTotalProgression, secondTotalProgression)
         else {
             return false
         }

@@ -43,6 +43,9 @@ under Readium preferences. Do not encode meaning by color alone.
 - Tag count badges use faceted AND semantics; zero-count unselected tags remain
   visible but disabled. If no active tag exists, the Tags section retains its
   header and shows a stable empty placeholder.
+- Card context menus place Share Book before a divider and the destructive
+  Delete action. Sharing opens the native activity sheet with a title-based
+  EPUB/PDF filename; preparation failures use a recoverable alert.
 
 ### iPad
 
@@ -51,8 +54,8 @@ under Readium preferences. Do not encode meaning by color alone.
 - Main adaptive compact cover grid with search and import toolbar actions. It
   adds columns across the available detail width while retaining the same card
   maximum and filter semantics as iPhone.
-- Tag editing uses a sheet; status editing and deletion are available from the
-  card context menu. Reading uses the detail area.
+- Tag editing uses a sheet; status editing, book sharing, and deletion are
+  available from the card context menu. Reading uses the detail area.
 
 ### States
 
@@ -85,9 +88,12 @@ under Readium preferences. Do not encode meaning by color alone.
 - Publication content owns the screen. Top/bottom chrome fades after
   interaction and returns on center tap.
 - Top chrome: back, title/section, table of contents, appearance.
-- Bottom chrome: progression, percentage, and a centered regular/speed mode
-  switch. The Regular/Speed selector owns all mode changes and keeps the same
-  position in both modes. Top-left Back always returns to the library.
+- Bottom chrome: an accessible progression slider, percentage, and a centered
+  regular/speed mode switch. The slider tracks live reading position until a
+  drag begins, pauses chrome auto-hide while held, seeks once on release, and
+  then restarts chrome auto-hide. The Regular/Speed selector owns all mode
+  changes and keeps the same position in both modes. Top-left Back always
+  returns to the library.
 - Keep controls outside unsafe areas and stable when status-bar visibility
   changes.
 - Warm light and graphite dark reader themes meet WCAG contrast; system mode

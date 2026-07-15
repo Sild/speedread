@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct LibraryView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -8,6 +9,9 @@ struct LibraryView: View {
     @State private var presentsImporter = false
     @State private var editingBook: Book?
     @State private var pendingDeletion: Book?
+    @State private var pendingShareBook: Book?
+    @State private var sharePayload: BookSharePayload?
+    @State private var shareFailureMessage: String?
 
     private let fileStore: any BookFileStore
     private let publicationService: any PublicationService
@@ -75,6 +79,9 @@ struct LibraryView: View {
             }
             .presentationDetents([.large])
         }
+        .sheet(item: $sharePayload) { payload in
+            BookShareSheet(payload: payload)
+        }
         .alert("library.import.error.title", isPresented: importFailurePresented) {
             Button("action.ok") {
                 importCoordinator.dismissFailure()
@@ -97,13 +104,34 @@ struct LibraryView: View {
                 )
             )
         }
+        .alert("library.share.error.title", isPresented: shareFailurePresented) {
+            Button("action.ok") {
+                shareFailureMessage = nil
+            }
+        } message: {
+            Text(shareFailureMessage ?? "")
+        }
         .task {
             viewModel.load()
+        }
+        .task(id: pendingShareBook?.id) {
+            await preparePendingShare()
         }
         .onChange(of: importCoordinator.revision) {
             viewModel.load()
         }
     }
+}
+
+private struct BookShareSheet: UIViewControllerRepresentable {
+    let payload: BookSharePayload
+
+    func makeUIViewController(context _: Context) -> UIActivityViewController {
+        let configuration = UIActivityItemsConfiguration(itemProviders: [payload.itemProvider])
+        return UIActivityViewController(activityItemsConfiguration: configuration)
+    }
+
+    func updateUIViewController(_: UIActivityViewController, context _: Context) {}
 }
 
 private extension LibraryView {
@@ -266,6 +294,13 @@ private extension LibraryView {
         Button("library.tags.edit") {
             editingBook = book
         }
+        Button {
+            pendingShareBook = book
+        } label: {
+            Label("library.share", systemImage: "square.and.arrow.up")
+        }
+        .accessibilityIdentifier("library.share")
+        Divider()
         Button("action.delete", role: .destructive) {
             pendingDeletion = book
         }
@@ -310,6 +345,27 @@ private extension LibraryView {
         )
     }
 
+    private func preparePendingShare() async {
+        guard let book = pendingShareBook else {
+            return
+        }
+        defer {
+            pendingShareBook = nil
+        }
+        do {
+            sharePayload = try await BookSharePayload.prepare(
+                book: book,
+                fileStore: fileStore
+            )
+        } catch is CancellationError {
+            return
+        } catch let error as BookShareError {
+            shareFailureMessage = error.userMessage
+        } catch {
+            shareFailureMessage = BookShareError.inaccessibleFile.userMessage
+        }
+    }
+
     private var minimumBookCardWidth: CGFloat {
         dynamicTypeSize.isAccessibilitySize ? 160 : 92
     }
@@ -335,6 +391,17 @@ private extension LibraryView {
             set: { isPresented in
                 if !isPresented {
                     pendingDeletion = nil
+                }
+            }
+        )
+    }
+
+    private var shareFailurePresented: Binding<Bool> {
+        Binding(
+            get: { shareFailureMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    shareFailureMessage = nil
                 }
             }
         )

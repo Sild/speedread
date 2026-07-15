@@ -105,13 +105,15 @@ Readium decoration to its text highlight. A malformed optional transition
 locator is ignored so the regular reader remains available.
 
 Regular-reader persistence merges navigator snapshots with the last persisted
-position. It retains the speed element and token offset while the old and new
-locators identify the same EPUB resource and either the same content selector
-or the same page progression. It also recognizes Readium's initial navigator
-normalization, which changes a backslash resource path to a slash path and
-collapses an exact selector to the selector-less resource start. A real resource
-or page change still clears the cursor. This prevents the initial location
-callback from resetting speed mode while avoiding a stale cursor after genuine
+position. It retains the exact speed locator, element identity, and token offset
+while the old and new locators identify the same content; live total progression
+continues to update independently. For EPUB, the regular session tracks the
+exact incoming selector through Readium's first settled navigator location,
+which can normalize the resource path, remove the selector, add a content
+position, and report a coarse resource/page progression. Repeated snapshots at
+that settled location preserve the speed cursor; a different location or an
+explicit navigator jump invalidates it. This keeps the extraction anchor precise
+across repeated mode switches without retaining a stale cursor after genuine
 regular-reader navigation.
 
 For PDF, `PDFPageTextExtractor` is a serial actor backed by a separate PDFKit
@@ -128,7 +130,9 @@ Successful page text and stable page-level failures are encoded beneath
 `Derived/<content-hash>/pdf-text-v2/`; rendered page images are never cached.
 `PDFSpeedContentProvider` emits stable `pdf-text-v2:<page>:<segment>` identities,
 keeps the Readium page locator, segments pages above 100,000 graphemes, and owns
-one cancellable task that prefetches the adjacent pages.
+one cancellable task that prefetches the adjacent pages. Session startup passes
+the saved element identity to the provider so a word in a later bounded segment
+resumes from that segment instead of the first segment on the page.
 
 ## Domain and Persistence
 

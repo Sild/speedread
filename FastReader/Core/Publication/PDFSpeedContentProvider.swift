@@ -40,7 +40,10 @@ final class PDFSpeedContentProvider: SpeedContentProviding {
         prefetchTask?.cancel()
     }
 
-    func start(at locatorJSON: String?) async throws -> SpeedContentElement? {
+    func start(
+        at locatorJSON: String?,
+        preferredElementID: String?
+    ) async throws -> SpeedContentElement? {
         let targetPage: Int
         if let locatorJSON {
             guard let locator = try Locator(jsonString: locatorJSON) else {
@@ -50,7 +53,11 @@ final class PDFSpeedContentProvider: SpeedContentProviding {
         } else {
             targetPage = 0
         }
-        return try await load(page: targetPage, segment: 0)
+        let targetSegment = Self.resumeSegmentIndex(
+            preferredElementID: preferredElementID,
+            pageIndex: targetPage
+        ) ?? 0
+        return try await load(page: targetPage, segment: targetSegment)
     }
 
     func next() async throws -> SpeedContentElement? {
@@ -157,5 +164,20 @@ final class PDFSpeedContentProvider: SpeedContentProviding {
             remaining = remaining[end...].drop(while: \.isWhitespace)
         }
         return result
+    }
+
+    static func resumeSegmentIndex(
+        preferredElementID: String?,
+        pageIndex: Int
+    ) -> Int? {
+        let prefix = "pdf-text-v\(PDFPageTextExtractor.cacheVersion):\(pageIndex + 1):"
+        guard let preferredElementID,
+              preferredElementID.hasPrefix(prefix),
+              let segmentIndex = Int(preferredElementID.dropFirst(prefix.count)),
+              segmentIndex >= 0
+        else {
+            return nil
+        }
+        return segmentIndex
     }
 }

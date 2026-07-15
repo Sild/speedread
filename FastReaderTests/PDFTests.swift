@@ -3,6 +3,7 @@ import Foundation
 @preconcurrency import PDFKit
 import Testing
 import UIKit
+import UniformTypeIdentifiers
 
 private final class PDFTestBundleToken {}
 
@@ -212,7 +213,7 @@ struct PDFTests {
             fileStore: fileStore
         )
 
-        let first = try #require(try await provider.start(at: nil))
+        let first = try #require(try await provider.start(at: nil, preferredElementID: nil))
         #expect(first.id == "pdf-text-v2:1:0")
         let second = try #require(try await provider.next())
         #expect(second.id == "pdf-text-v2:2:0")
@@ -342,6 +343,41 @@ struct PDFTests {
     }
 }
 
+extension PDFTests {
+    @Test("PDF sharing exports original bytes with the publication title")
+    func pdfSharing() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = InMemoryBookRepository()
+        let fileStore = try ApplicationSupportBookFileStore(rootURL: root)
+        let coordinator = ImportCoordinator(
+            repository: repository,
+            fileStore: fileStore,
+            publicationService: ReadiumPublicationService()
+        )
+        let sourceURL = try fixture("pdf-metadata-outline")
+
+        let outcome = try await coordinator.importFile(at: sourceURL)
+        guard case let .imported(bookID) = outcome,
+              let book = try repository.book(id: bookID)
+        else {
+            Issue.record("Expected imported PDF")
+            return
+        }
+
+        let payload = try await BookSharePayload.prepare(book: book, fileStore: fileStore)
+        let typeIdentifier = UTType.pdf.identifier
+        #expect(payload.itemProvider.suggestedName == "Native PDF Fixture.pdf")
+        #expect(payload.itemProvider.registeredTypeIdentifiers.contains(typeIdentifier))
+        #expect(
+            try await shareRepresentationData(
+                from: payload.itemProvider,
+                typeIdentifier: typeIdentifier
+            ) == Data(contentsOf: sourceURL)
+        )
+    }
+}
+
 @Suite("PDF OCR layout regression")
 struct PDFOCRLayoutTests {
     @Test("Split observations form logical lines before confidence and layout gates")
@@ -419,7 +455,7 @@ struct PDFPrefetchTests {
             fileStore: fileStore
         )
 
-        _ = try await provider.start(at: nil)
+        _ = try await provider.start(at: nil, preferredElementID: nil)
         try await Task.sleep(for: .milliseconds(50))
         _ = try await provider.seek(toTotalProgression: 1)
 

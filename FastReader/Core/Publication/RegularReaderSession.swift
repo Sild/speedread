@@ -24,6 +24,7 @@ final class RegularReaderSession {
     @ObservationIgnored private let navigator: ReaderNavigator
     @ObservationIgnored private let outlineLinks: [UUID: Link]
     @ObservationIgnored private var latestSnapshot: ReaderPositionSnapshot?
+    @ObservationIgnored private var epubInitialPositionContinuity: EPUBInitialPositionContinuity?
     @ObservationIgnored private var reachedPublicationEnd = false
     @ObservationIgnored private var pdfScrollObservation: NSKeyValueObservation?
     @ObservationIgnored private weak var pdfScrollView: UIScrollView?
@@ -47,6 +48,11 @@ final class RegularReaderSession {
             try? Locator(jsonString: highlightLocatorJSON)
         } else {
             nil
+        }
+        if format == .epub {
+            epubInitialPositionContinuity = EPUBInitialPositionContinuity(
+                exactLocator: initialLocator
+            )
         }
         transitionHighlightText = highlightLocator?.text.highlight
 
@@ -74,7 +80,10 @@ final class RegularReaderSession {
         Self.applyTransitionHighlight(highlightLocator, to: navigator)
 
         if let initialLocator {
-            latestSnapshot = Self.snapshot(from: initialLocator)
+            latestSnapshot = Self.snapshot(
+                from: initialLocator,
+                preservesSpeedCursor: epubInitialPositionContinuity != nil
+            )
         }
     }
 
@@ -121,7 +130,7 @@ final class RegularReaderSession {
             navigator.currentLocation
         }
         if let locator {
-            return Self.snapshot(from: locator, reachedPublicationEnd: reachedPublicationEnd)
+            return snapshot(from: locator, reachedPublicationEnd: reachedPublicationEnd)
         }
         return latestSnapshot
     }
@@ -131,7 +140,7 @@ final class RegularReaderSession {
     }
 
     private func receive(_ locator: Locator) {
-        guard let snapshot = Self.snapshot(
+        guard let snapshot = snapshot(
             from: locator,
             reachedPublicationEnd: reachedPublicationEnd
         ) else {
@@ -177,24 +186,6 @@ final class RegularReaderSession {
             + scrollView.bounds.height
             - scrollView.adjustedContentInset.bottom
         return Double(visibleBottom)
-    }
-
-    private static func snapshot(
-        from locator: Locator,
-        reachedPublicationEnd: Bool = false
-    ) -> ReaderPositionSnapshot? {
-        guard let locatorJSON = locator.jsonString else {
-            return nil
-        }
-        let progression = reachedPublicationEnd
-            ? 1
-            : min(max(locator.locations.totalProgression ?? 0, 0), 1)
-        return ReaderPositionSnapshot(
-            locatorJSON: locatorJSON,
-            totalProgression: progression,
-            reachedPublicationEnd: reachedPublicationEnd,
-            sectionTitle: locator.title
-        )
     }
 
     private static func epubPreferences(_ preferences: RegularReaderPreferences) -> EPUBPreferences {
@@ -330,12 +321,98 @@ final class RegularReaderSession {
     }
 }
 
+extension RegularReaderSession {
+    func seek(toTotalProgression requestedProgression: Double) async -> Bool {
+        let progression = min(max(requestedProgression, 0), 1)
+        guard let locator = await seekLocator(for: progression) else {
+            failureMessage = String(localized: "reader.error.navigation")
+            return false
+        }
+
+        let previousReachedPublicationEnd = reachedPublicationEnd
+        reachedPublicationEnd = progression == 1
+        let succeeded = switch navigator {
+        case let .epub(navigator):
+            await navigator.go(to: locator, options: NavigatorGoOptions(animated: false))
+        case let .pdf(navigator):
+            await navigator.go(to: locator, options: NavigatorGoOptions(animated: false))
+        }
+        guard succeeded else {
+            reachedPublicationEnd = previousReachedPublicationEnd
+            failureMessage = String(localized: "reader.error.navigation")
+            return false
+        }
+
+        if progression == 1, case let .pdf(navigator) = navigator, navigator.settings.scroll {
+            scrollPDFToEnd()
+        }
+        receive(locator)
+        return true
+    }
+
+    static func seekLocator(for requestedProgression: Double, in positions: [Locator]) -> Locator? {
+        let progression = min(max(requestedProgression, 0), 1)
+        guard let closest = positions.min(by: {
+            abs(($0.locations.totalProgression ?? 0) - progression)
+                < abs(($1.locations.totalProgression ?? 0) - progression)
+        }) else {
+            return nil
+        }
+        guard progression == 0 || progression == 1 else {
+            return closest
+        }
+        return closest.copy(locations: {
+            $0.progression = progression
+            $0.totalProgression = progression
+        })
+    }
+
+    private func seekLocator(for progression: Double) async -> Locator? {
+        switch await publication.positions() {
+        case let .success(positions):
+            Self.seekLocator(for: progression, in: positions)
+        case .failure:
+            nil
+        }
+    }
+
+    private func scrollPDFToEnd() {
+        guard let scrollView = pdfScrollView else {
+            return
+        }
+        scrollView.layoutIfNeeded()
+        let maximumOffset = max(
+            -scrollView.adjustedContentInset.top,
+            scrollView.contentSize.height
+                - scrollView.bounds.height
+                + scrollView.adjustedContentInset.bottom
+        )
+        scrollView.setContentOffset(
+            CGPoint(x: scrollView.contentOffset.x, y: maximumOffset),
+            animated: false
+        )
+    }
+}
+
 private enum ReaderNavigator {
     case epub(EPUBNavigatorViewController)
     case pdf(PDFNavigatorViewController)
 }
 
 private extension RegularReaderSession {
+    func snapshot(
+        from locator: Locator,
+        reachedPublicationEnd: Bool
+    ) -> ReaderPositionSnapshot? {
+        let preservesSpeedCursor = epubInitialPositionContinuity?
+            .preservesSpeedCursor(at: locator) ?? false
+        return Self.snapshot(
+            from: locator,
+            reachedPublicationEnd: reachedPublicationEnd,
+            preservesSpeedCursor: preservesSpeedCursor
+        )
+    }
+
     static func firstScrollView(in view: UIView) -> UIScrollView? {
         if let scrollView = view as? UIScrollView {
             return scrollView
@@ -360,6 +437,10 @@ extension RegularReaderSession: EPUBNavigatorDelegate {
 
     func navigator(_: Navigator, presentError _: NavigatorError) {
         failureMessage = String(localized: "reader.error.navigation")
+    }
+
+    func navigator(_: Navigator, didJumpTo _: Locator) {
+        epubInitialPositionContinuity?.invalidate()
     }
 
     func navigator(

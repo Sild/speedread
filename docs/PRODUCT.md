@@ -43,10 +43,12 @@ iOS/iPadOS 17 or newer.
   status. Unselected tag counts predict the result of adding that tag to the
   current AND filter; selected tags show the current result count. An
   unavailable unselected tag stays visible but disabled.
-- A person can set any status, edit tags, and delete a book after confirmation.
-  Tag editing is transactional: a large sheet groups selected tags above the
-  remaining available tags, and Save is enabled only after the selection
-  changes. Cancel discards the draft.
+- A person can set any status, edit tags, share the original stored EPUB or PDF
+  through the system share sheet, and delete a book after confirmation. Sharing
+  never includes covers, progress, tags, or derived data. Tag editing is
+  transactional: a large sheet groups selected tags above the remaining
+  available tags, and Save is enabled only after the selection changes. Cancel
+  discards the draft.
 - The tag field filters existing names as a person types and offers one explicit
   Create action when no case- or Unicode-equivalent tag exists. Return performs
   the same select-or-create action. Each submission is one tag, so spaces are
@@ -64,8 +66,11 @@ iOS/iPadOS 17 or newer.
 - Open the table of contents and jump to a section.
 - Change font family, font size, line height, margins, theme, and reading layout
   when the publication supports those preferences.
-- View progress and switch to speed reading through the shared bottom mode
-  selector without losing the current section. Back always exits the book.
+- Scrub the bottom progress control and release it to jump to the closest EPUB
+  content position or PDF page. The beginning/end endpoints cover the full
+  publication, including the bottom of a continuously scrolling PDF.
+- Switch to speed reading through the shared bottom mode selector without
+  losing the current section. Back always exits the book.
 
 ### Read quickly
 
@@ -83,8 +88,9 @@ iOS/iPadOS 17 or newer.
   the exact word that was active in speed mode. Back exits the book and returns
   to the library instead of changing reading mode.
 - Returning to speed reading restores that exact word after a regular/speed
-  round trip or after closing and reopening the book. Regular navigation to a
-  different content element replaces the retained speed cursor.
+  round trip or after closing and reopening the book for EPUB and PDF, including
+  a PDF word in a later bounded page segment. Regular navigation to a different
+  content element replaces the retained speed cursor.
 - WPM defaults to 300 and ranges from 100 through 1000 in steps of 25.
 - Base duration is `60 / WPM` seconds. Adaptive timing adds 25% for words of at
   least 10 graphemes, 50% after clause punctuation, 100% after sentence-ending
@@ -97,9 +103,9 @@ iOS/iPadOS 17 or newer.
 - Store progress as a clamped `0...1` total progression and display the nearest
   whole percentage.
 - The serialized Readium locator is the canonical cross-mode position. Speed
-  mode also stores a content-element identity and token offset. Regular-reader
-  saves preserve that cursor while the locator remains in the same content
-  element and clear it after navigation to another element.
+  mode also stores a content-element identity and token offset. Compatible
+  regular-reader saves retain the exact speed locator and cursor while updating
+  displayed progression; navigation to another element replaces that anchor.
 - A new book begins as `new`. Persisting the first positive progression changes
   `new` to `reading`.
 - Reaching an explicit publication-end signal sets progress to `1` and changes

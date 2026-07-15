@@ -17,7 +17,10 @@ final class ReadiumSpeedContentProvider: SpeedContentProviding {
         self.publication = publication
     }
 
-    func start(at locatorJSON: String?) async throws -> SpeedContentElement? {
+    func start(
+        at locatorJSON: String?,
+        preferredElementID _: String?
+    ) async throws -> SpeedContentElement? {
         let locator: Locator? = if let locatorJSON {
             try Locator(jsonString: locatorJSON)
         } else {

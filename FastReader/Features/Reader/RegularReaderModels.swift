@@ -42,6 +42,7 @@ struct ReaderPositionSnapshot: Equatable, Sendable {
     let totalProgression: Double
     let reachedPublicationEnd: Bool
     let sectionTitle: String?
+    let preservesSpeedCursor: Bool
 }
 
 enum ReaderEndDetection {

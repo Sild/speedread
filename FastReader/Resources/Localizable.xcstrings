@@ -281,6 +281,56 @@
         }
       }
     },
+    "library.share" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share Book"
+          }
+        }
+      }
+    },
+    "library.share.defaultFilename" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Book"
+          }
+        }
+      }
+    },
+    "library.share.error.inaccessibleFile" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FastReader could not prepare this book for sharing. Please try again."
+          }
+        }
+      }
+    },
+    "library.share.error.missingFile" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The book file is missing. Re-import the same file to repair it, then try again."
+          }
+        }
+      }
+    },
+    "library.share.error.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t Share Book"
+          }
+        }
+      }
+    },
     "library.sidebar.all" : {
       "localizations" : {
         "en" : {
@@ -747,6 +797,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reading progress"
+          }
+        }
+      }
+    },
+    "reader.progress.seek.hint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adjust to move to another position in the book."
           }
         }
       }

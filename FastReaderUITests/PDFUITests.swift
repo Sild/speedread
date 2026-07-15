@@ -27,7 +27,14 @@ final class PDFUITests: XCTestCase {
         book.tap()
 
         XCTAssertTrue(app.otherElements["reader.navigator"].waitForExistence(timeout: 8))
-        app.buttons["reader.appearance"].tap()
+        scrubRegularReaderProgress(in: app)
+
+        let appearanceButton = app.buttons["reader.appearance"]
+        if !appearanceButton.waitForExistence(timeout: 1) {
+            app.otherElements["reader.navigator"].tap()
+        }
+        XCTAssertTrue(appearanceButton.waitForExistence(timeout: 3))
+        appearanceButton.tap()
         let scrollSwitch = app.switches["reader.appearance.scroll"]
         XCTAssertTrue(scrollSwitch.waitForExistence(timeout: 3))
         XCTAssertEqual(scrollSwitch.value as? String, "1")
@@ -54,5 +61,42 @@ final class PDFUITests: XCTestCase {
         XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 3))
         app.buttons["reader.mode.regular"].tap()
         XCTAssertTrue(app.otherElements["reader.navigator"].waitForExistence(timeout: 8))
+    }
+
+    @MainActor
+    private func scrubRegularReaderProgress(in app: XCUIApplication) {
+        let progressSlider = app.sliders["reader.progress"]
+        XCTAssertTrue(progressSlider.waitForExistence(timeout: 3))
+        let initialProgress = progressSlider.value as? String
+        progressSlider.adjust(toNormalizedSliderPosition: 0.65)
+        let progressChanged = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value != %@", initialProgress ?? ""),
+            object: progressSlider
+        )
+        wait(for: [progressChanged], timeout: 8)
+
+        progressSlider.adjust(toNormalizedSliderPosition: 1)
+        let reachedEnd = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value == %@", "100%"),
+            object: progressSlider
+        )
+        wait(for: [reachedEnd], timeout: 8)
+
+        progressSlider.adjust(toNormalizedSliderPosition: 0.65)
+        let returnedFromEnd = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value != %@", "100%"),
+            object: progressSlider
+        )
+        wait(for: [returnedFromEnd], timeout: 8)
+    }
+}
+
+@MainActor
+extension FastReaderUITests {
+    func attachScreenshot(named name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }

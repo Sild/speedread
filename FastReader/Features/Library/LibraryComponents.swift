@@ -221,6 +221,79 @@ struct TagSelectionDraft: Equatable {
     }
 }
 
+enum BookShareError: Error, Equatable {
+    case missingFile
+    case inaccessibleFile
+
+    var userMessage: String {
+        switch self {
+        case .missingFile:
+            String(localized: "library.share.error.missingFile")
+        case .inaccessibleFile:
+            String(localized: "library.share.error.inaccessibleFile")
+        }
+    }
+}
+
+@MainActor
+struct BookSharePayload: Identifiable {
+    let id: UUID
+    let itemProvider: NSItemProvider
+
+    static func prepare(
+        book: Book,
+        fileStore: any BookFileStore
+    ) async throws -> BookSharePayload {
+        try Task.checkCancellation()
+        guard await fileStore.fileExists(relativePath: book.fileRelativePath) else {
+            throw BookShareError.missingFile
+        }
+
+        let fileURL: URL
+        do {
+            fileURL = try await fileStore.fileURL(relativePath: book.fileRelativePath)
+        } catch {
+            throw BookShareError.inaccessibleFile
+        }
+        try Task.checkCancellation()
+
+        guard let itemProvider = NSItemProvider(contentsOf: fileURL) else {
+            throw BookShareError.inaccessibleFile
+        }
+        let suggestedFilename = suggestedFilename(
+            title: book.title,
+            fileExtension: fileURL.pathExtension
+        )
+        itemProvider.suggestedName = suggestedFilename
+        return BookSharePayload(
+            id: book.id,
+            itemProvider: itemProvider
+        )
+    }
+
+    static func suggestedFilename(title: String, fileExtension: String) -> String {
+        let invalidCharacters = CharacterSet(charactersIn: "/\\:")
+            .union(.controlCharacters)
+        let normalizedTitle = title
+            .components(separatedBy: invalidCharacters)
+            .joined(separator: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let baseName = String(
+            (normalizedTitle.isEmpty
+                ? String(localized: "library.share.defaultFilename")
+                : normalizedTitle)
+                .prefix(120)
+        )
+        let normalizedExtension = fileExtension.lowercased()
+        guard !normalizedExtension.isEmpty,
+              !baseName.lowercased().hasSuffix(".\(normalizedExtension)")
+        else {
+            return baseName
+        }
+        return "\(baseName).\(normalizedExtension)"
+    }
+}
+
 struct TagEditorView: View {
     let book: Book
     let onSave: ([String]) throws -> Void

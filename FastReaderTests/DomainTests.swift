@@ -1,5 +1,6 @@
 @testable import FastReader
 import Foundation
+@preconcurrency import ReadiumShared
 import SwiftData
 import Testing
 
@@ -312,6 +313,42 @@ struct DomainTests {
             lastOpenedAt: nil,
             coverRelativePath: nil
         )
+    }
+}
+
+extension DomainTests {
+    @Test("Regular-reader seek targets snap to positions and preserve full endpoints")
+    @MainActor
+    func regularReaderSeekTargets() throws {
+        let positions = try [
+            locator(position: 1, progression: 0),
+            locator(position: 2, progression: 0.5),
+            locator(position: 3, progression: 0.9)
+        ]
+
+        let midpoint = try #require(RegularReaderSession.seekLocator(for: 0.6, in: positions))
+        #expect(midpoint.locations.position == 2)
+        #expect(midpoint.locations.totalProgression == 0.5)
+
+        let beginning = try #require(RegularReaderSession.seekLocator(for: -1, in: positions))
+        #expect(beginning.locations.position == 1)
+        #expect(beginning.locations.progression == 0)
+        #expect(beginning.locations.totalProgression == 0)
+
+        let end = try #require(RegularReaderSession.seekLocator(for: 2, in: positions))
+        #expect(end.locations.position == 3)
+        #expect(end.locations.progression == 1)
+        #expect(end.locations.totalProgression == 1)
+    }
+
+    private func locator(position: Int, progression: Double) throws -> Locator {
+        let json =
+            """
+            {"href":"chapter.xhtml","type":"application/xhtml+xml",
+            "locations":{"position":\(position),"progression":\(progression),
+            "totalProgression":\(progression)}}
+            """
+        return try #require(try Locator(jsonString: json))
     }
 }
 

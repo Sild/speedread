@@ -5,7 +5,7 @@ import Testing
 @Suite("Speed reader session")
 @MainActor
 struct SpeedReaderSessionTests {
-    @Test("Regular updates preserve only a matching speed cursor")
+    @Test("Regular updates preserve only a matching exact speed anchor")
     func regularPositionUpdate() {
         let speedPosition = ReadingPosition(
             locatorJSON: Self.locator(selector: "#paragraph-two", progression: 0.3),
@@ -22,6 +22,7 @@ struct SpeedReaderSessionTests {
         )
         #expect(unchanged.speedElementID == speedPosition.speedElementID)
         #expect(unchanged.speedTokenOffset == speedPosition.speedTokenOffset)
+        #expect(unchanged.locatorJSON == speedPosition.locatorJSON)
 
         let normalized = unchanged.updatingFromRegularReader(
             locatorJSON: Self.locator(selector: "#page-heading", progression: 0.31),
@@ -30,30 +31,25 @@ struct SpeedReaderSessionTests {
         )
         #expect(normalized.speedElementID == speedPosition.speedElementID)
         #expect(normalized.speedTokenOffset == speedPosition.speedTokenOffset)
+        #expect(normalized.locatorJSON == speedPosition.locatorJSON)
 
         let navigatorNormalized = speedPosition.updatingFromRegularReader(
             locatorJSON: Self.resourceStartLocator,
             totalProgression: 0,
             at: Date(timeIntervalSince1970: 4)
         )
-        #expect(navigatorNormalized.speedElementID == speedPosition.speedElementID)
-        #expect(navigatorNormalized.speedTokenOffset == speedPosition.speedTokenOffset)
-
-        let paged = navigatorNormalized.updatingFromRegularReader(
-            locatorJSON: Self.resourcePageLocator,
-            totalProgression: 0.4,
-            at: Date(timeIntervalSince1970: 5)
-        )
-        #expect(paged.speedElementID == nil)
-        #expect(paged.speedTokenOffset == nil)
+        #expect(navigatorNormalized.speedElementID == nil)
+        #expect(navigatorNormalized.speedTokenOffset == nil)
+        #expect(navigatorNormalized.locatorJSON == Self.resourceStartLocator)
 
         let navigated = normalized.updatingFromRegularReader(
             locatorJSON: Self.locator(selector: "#paragraph-three", progression: 0.4),
             totalProgression: 0.4,
-            at: Date(timeIntervalSince1970: 6)
+            at: Date(timeIntervalSince1970: 5)
         )
         #expect(navigated.speedElementID == nil)
         #expect(navigated.speedTokenOffset == nil)
+        #expect(navigated.locatorJSON == Self.locator(selector: "#paragraph-three", progression: 0.4))
     }
 
     @Test("Session restores an exact token offset across extracted paragraphs")
@@ -175,12 +171,13 @@ struct SpeedReaderSessionTests {
     private static func element(
         id: String,
         text: String,
+        locatorJSON: String? = nil,
         progress: Double
     ) -> SpeedContentElement {
         SpeedContentElement(
             id: id,
             text: text,
-            locatorJSON: id,
+            locatorJSON: locatorJSON ?? id,
             totalProgression: progress
         )
     }
@@ -196,10 +193,6 @@ struct SpeedReaderSessionTests {
     private static let resourceStartLocator = """
     {"href":"EPUB/chapter.xhtml","locations":{"position":1,"progression":0,"totalProgression":0}}
     """
-
-    private static let resourcePageLocator = """
-    {"href":"EPUB/chapter.xhtml","locations":{"position":1,"progression":0.4,"totalProgression":0.4}}
-    """
 }
 
 @MainActor
@@ -211,7 +204,10 @@ private final class ArraySpeedContentProvider: SpeedContentProviding {
         self.elements = elements
     }
 
-    func start(at locatorJSON: String?) async throws -> SpeedContentElement? {
+    func start(
+        at locatorJSON: String?,
+        preferredElementID _: String?
+    ) async throws -> SpeedContentElement? {
         if let locatorJSON, let matchingIndex = elements.firstIndex(where: {
             $0.locatorJSON == locatorJSON
         }) {

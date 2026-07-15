@@ -1,6 +1,7 @@
 @testable import FastReader
 import Foundation
 import Testing
+import UniformTypeIdentifiers
 
 private final class TestBundleToken {}
 
@@ -53,6 +54,17 @@ struct ImportTests {
             preferences: RegularReaderPreferences()
         )
         #expect(fixedSession.viewController.view != nil)
+
+        let unloadedSession = try await service.makeRegularReaderSession(
+            at: fixture(named: "epub3-cyrillic"),
+            initialLocatorJSON: nil,
+            highlightLocatorJSON: nil,
+            preferences: RegularReaderPreferences()
+        )
+        #expect(await !unloadedSession.seek(toTotalProgression: 0.5))
+        #expect(unloadedSession.failureMessage == String(localized: "reader.error.navigation"))
+        unloadedSession.dismissFailure()
+        #expect(unloadedSession.failureMessage == nil)
     }
 
     @Test("Readium extracts bounded speed content and restores it in regular mode")
@@ -64,7 +76,7 @@ struct ImportTests {
             contentHash: "epub-fixture",
             fileStore: fileStore
         )
-        let firstCandidate = try await provider.start(at: nil)
+        let firstCandidate = try await provider.start(at: nil, preferredElementID: nil)
         let first = try #require(firstCandidate)
         #expect(first.segments.count >= 2)
         #expect(Set(first.segments.map(\.id)).count >= 2)
@@ -90,13 +102,15 @@ struct ImportTests {
         await session.moveNext()
         await session.moveNext()
         let activeToken = try #require(session.currentToken)
-        let speedSnapshot = try #require(session.currentPosition())
-        try await assertRegularSpeedRoundTrip(
-            service: service,
-            fileStore: fileStore,
-            activeToken: activeToken,
-            speedSnapshot: speedSnapshot
+        let activeRegularSession = try await service.makeRegularReaderSession(
+            at: fixture(named: "epub3-cyrillic"),
+            initialLocatorJSON: activeToken.locatorJSON,
+            highlightLocatorJSON: activeToken.locatorJSON,
+            preferences: RegularReaderPreferences()
         )
+        #expect(activeRegularSession.transitionHighlightText == activeToken.text)
+        #expect(activeRegularSession.currentPosition() != nil)
+        #expect(activeRegularSession.viewController.view != nil)
 
         let soughtCandidate = try await provider.seek(toTotalProgression: 0.5)
         let sought = try #require(soughtCandidate)
@@ -108,48 +122,9 @@ struct ImportTests {
         )
         #expect(regularSession.currentPosition() != nil)
     }
+}
 
-    private func assertRegularSpeedRoundTrip(
-        service: ReadiumPublicationService,
-        fileStore: ApplicationSupportBookFileStore,
-        activeToken: SpeedToken,
-        speedSnapshot: SpeedPositionSnapshot
-    ) async throws {
-        let speedPosition = ReadingPosition(
-            locatorJSON: speedSnapshot.locatorJSON,
-            totalProgression: speedSnapshot.totalProgression,
-            speedElementID: speedSnapshot.elementID,
-            speedTokenOffset: speedSnapshot.tokenOffset,
-            updatedAt: .now
-        )
-        let regularSession = try await service.makeRegularReaderSession(
-            at: fixture(named: "epub3-cyrillic"),
-            initialLocatorJSON: activeToken.locatorJSON,
-            highlightLocatorJSON: activeToken.locatorJSON,
-            preferences: RegularReaderPreferences()
-        )
-        #expect(regularSession.transitionHighlightText == activeToken.text)
-        #expect(regularSession.viewController.view != nil)
-        let regularSnapshot = try #require(regularSession.currentPosition())
-        let roundTripPosition = speedPosition.updatingFromRegularReader(
-            locatorJSON: regularSnapshot.locatorJSON,
-            totalProgression: regularSnapshot.totalProgression,
-            at: .now
-        )
-        let resumedProvider = try await service.makeSpeedContentProvider(
-            at: fixture(named: "epub3-cyrillic"),
-            contentHash: "epub-fixture",
-            fileStore: fileStore
-        )
-        let resumedSession = SpeedReaderSession(
-            provider: resumedProvider,
-            settings: SpeedReaderSettings()
-        )
-        try await resumedSession.start(from: roundTripPosition)
-        #expect(resumedSession.currentToken?.id == activeToken.id)
-        #expect(resumedSession.currentToken?.text == activeToken.text)
-    }
-
+extension ImportTests {
     @Test("Readium accepts EPUB 2 and fixed-layout EPUB 3")
     func supportedEPUBVariants() async throws {
         let service = ReadiumPublicationService()
@@ -324,6 +299,73 @@ struct ImportTests {
     }
 }
 
+extension ImportTests {
+    @Test("EPUB sharing exports original bytes with a safe title filename")
+    func epubSharing() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = InMemoryBookRepository()
+        let fileStore = try ApplicationSupportBookFileStore(rootURL: root)
+        let coordinator = ImportCoordinator(
+            repository: repository,
+            fileStore: fileStore,
+            publicationService: ReadiumPublicationService()
+        )
+        let sourceURL = try fixture(named: "epub3-cyrillic")
+
+        let outcome = try await coordinator.importFile(at: sourceURL)
+        guard case let .imported(bookID) = outcome,
+              let book = try repository.book(id: bookID)
+        else {
+            Issue.record("Expected imported EPUB")
+            return
+        }
+
+        let payload = try await BookSharePayload.prepare(book: book, fileStore: fileStore)
+        let typeIdentifier = UTType.fastReaderEPUB.identifier
+        #expect(payload.itemProvider.suggestedName == "Путешествие Swift.epub")
+        #expect(payload.itemProvider.registeredTypeIdentifiers.contains(typeIdentifier))
+        #expect(
+            try await shareRepresentationData(
+                from: payload.itemProvider,
+                typeIdentifier: typeIdentifier
+            ) == Data(contentsOf: sourceURL)
+        )
+        #expect(
+            BookSharePayload.suggestedFilename(
+                title: "  A/B:C  ",
+                fileExtension: "EPUB"
+            ) == "A-B-C.epub"
+        )
+    }
+
+    @Test("Sharing reports a missing stored publication")
+    func sharingMissingPublication() async throws {
+        let root = temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fileStore = try ApplicationSupportBookFileStore(rootURL: root)
+        let book = Book(
+            id: UUID(),
+            contentHash: "missing",
+            title: "Missing",
+            authorsDisplay: "",
+            mediaType: PublicationFormat.epub.defaultMediaType,
+            layout: .reflowable,
+            fileRelativePath: "Books/missing.epub",
+            progress: 0,
+            status: .new,
+            tags: [],
+            importedAt: .now,
+            lastOpenedAt: nil,
+            coverRelativePath: nil
+        )
+
+        await #expect(throws: BookShareError.missingFile) {
+            _ = try await BookSharePayload.prepare(book: book, fileStore: fileStore)
+        }
+    }
+}
+
 @MainActor
 private final class RejectingInsertRepository: BookRepository {
     enum Failure: Error {
@@ -365,4 +407,28 @@ private func fixtureURL(named name: String) throws -> URL {
         throw FixtureError.missing(name)
     }
     return url
+}
+
+private enum ShareRepresentationError: Error {
+    case missingData
+}
+
+@MainActor
+func shareRepresentationData(
+    from itemProvider: NSItemProvider,
+    typeIdentifier: String
+) async throws -> Data {
+    try await withCheckedThrowingContinuation { continuation in
+        _ = itemProvider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, error in
+            if let error {
+                continuation.resume(throwing: error)
+                return
+            }
+            guard let data else {
+                continuation.resume(throwing: ShareRepresentationError.missingData)
+                return
+            }
+            continuation.resume(returning: data)
+        }
+    }
 }

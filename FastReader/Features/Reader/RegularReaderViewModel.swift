@@ -124,6 +124,15 @@ final class RegularReaderViewModel {
         }
     }
 
+    func setChromeAutoHidePaused(_ paused: Bool) {
+        chromeHideTask?.cancel()
+        chromeHideTask = nil
+        showsChrome = true
+        if !paused {
+            scheduleChromeHide()
+        }
+    }
+
     private func receive(_ snapshot: ReaderPositionSnapshot) {
         pendingPosition = snapshot
         progress = snapshot.totalProgression
@@ -150,6 +159,7 @@ final class RegularReaderViewModel {
                 persistedPosition.updatingFromRegularReader(
                     locatorJSON: snapshot.locatorJSON,
                     totalProgression: snapshot.totalProgression,
+                    preserveSpeedCursor: snapshot.preservesSpeedCursor,
                     at: .now
                 )
             } else {

@@ -50,7 +50,10 @@ final class SpeedReaderSession {
     }
 
     func start(from position: ReadingPosition?) async throws {
-        guard let element = try await provider.start(at: position?.locatorJSON) else {
+        guard let element = try await provider.start(
+            at: position?.locatorJSON,
+            preferredElementID: position?.speedElementID
+        ) else {
             throw SpeedContentError.unavailable
         }
         try load(

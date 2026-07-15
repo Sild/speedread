@@ -11,6 +11,9 @@ struct RegularReaderView: View {
     @State private var presentsOutline = false
     @State private var presentsAppearance = false
     @State private var mode = ReaderMode.regular
+    @State private var scrubProgress: Double
+    @State private var isScrubbing = false
+    @State private var requestedSeekProgress: Double?
 
     @AppStorage("reader.theme") private var themeRawValue = ReaderTheme.system.rawValue
     @AppStorage("reader.font") private var fontRawValue = ReaderFont.publisher.rawValue
@@ -34,6 +37,7 @@ struct RegularReaderView: View {
         self.fileStore = fileStore
         self.publicationService = publicationService
         self.progressStore = progressStore
+        _scrubProgress = State(initialValue: book.progress)
         _viewModel = State(
             initialValue: RegularReaderViewModel(
                 book: book,
@@ -50,6 +54,10 @@ struct RegularReaderView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task {
                 await viewModel.load(preferences: preferences)
+                scrubProgress = viewModel.progress
+            }
+            .task(id: requestedSeekProgress) {
+                await performRequestedSeek()
             }
             .onChange(of: colorScheme) {
                 viewModel.apply(preferences)
@@ -75,6 +83,12 @@ struct RegularReaderView: View {
                 if isPDF {
                     viewModel.apply(preferences)
                 }
+            }
+            .onChange(of: viewModel.progress) {
+                guard !isScrubbing else {
+                    return
+                }
+                scrubProgress = viewModel.progress
             }
             .onChange(of: scenePhase) {
                 if scenePhase != .active {
@@ -228,13 +242,27 @@ struct RegularReaderView: View {
             Spacer()
 
             VStack(spacing: FastReaderSpacing.small) {
-                ProgressView(value: viewModel.progress)
-                    .tint(FastReaderPalette.progress)
-                    .accessibilityLabel("reader.progress")
-                    .accessibilityValue(viewModel.progress.formatted(.percent))
+                Slider(
+                    value: $scrubProgress,
+                    in: 0 ... 1,
+                    onEditingChanged: { editing in
+                        isScrubbing = editing
+                        viewModel.setChromeAutoHidePaused(editing)
+                        if !editing {
+                            requestedSeekProgress = scrubProgress
+                        }
+                    }
+                )
+                .tint(FastReaderPalette.progress)
+                .disabled(!readerIsReady || requestedSeekProgress != nil)
+                .accessibilityLabel("reader.progress")
+                .accessibilityValue(displayedProgress.formatted(.percent))
+                .accessibilityHint("reader.progress.seek.hint")
+                .accessibilityIdentifier("reader.progress")
                 HStack {
-                    Text(viewModel.progress, format: .percent.precision(.fractionLength(0)))
+                    Text(displayedProgress, format: .percent.precision(.fractionLength(0)))
                         .font(.caption.monospacedDigit())
+                        .accessibilityIdentifier("reader.progress.percentage")
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
@@ -270,6 +298,35 @@ extension RegularReaderView {
     private func exitBook() {
         viewModel.flushPosition()
         dismiss()
+    }
+
+    private func performRequestedSeek() async {
+        guard let progression = requestedSeekProgress else {
+            return
+        }
+        defer {
+            requestedSeekProgress = nil
+        }
+        guard case let .ready(session) = viewModel.state else {
+            scrubProgress = viewModel.progress
+            return
+        }
+        guard await session.seek(toTotalProgression: progression) else {
+            scrubProgress = viewModel.progress
+            return
+        }
+        scrubProgress = session.progress
+    }
+
+    private var displayedProgress: Double {
+        isScrubbing ? scrubProgress : viewModel.progress
+    }
+
+    private var readerIsReady: Bool {
+        if case .ready = viewModel.state {
+            return true
+        }
+        return false
     }
 
     private var isPDF: Bool {

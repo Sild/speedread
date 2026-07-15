@@ -222,6 +222,44 @@ final class FastReaderUITests: XCTestCase {
     }
 
     @MainActor
+    func testRegularReaderProgressScrubbingAndShareContextMenu() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing"]
+        app.launch()
+
+        let book = try openFixtureBook(in: app)
+        let slider = app.sliders["reader.progress"]
+        XCTAssertTrue(slider.waitForExistence(timeout: 8))
+        let initialValue = slider.value as? String
+        slider.adjust(toNormalizedSliderPosition: 0.65)
+        let progressChanged = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value != %@", initialValue ?? ""),
+            object: slider
+        )
+        wait(for: [progressChanged], timeout: 8)
+
+        let back = app.buttons["reader.back"]
+        if !back.exists {
+            app.otherElements["reader.navigator"].tap()
+        }
+        XCTAssertTrue(back.waitForExistence(timeout: 3))
+        back.tap()
+        XCTAssertTrue(book.waitForExistence(timeout: 5))
+
+        book.tap()
+        XCTAssertTrue(slider.waitForExistence(timeout: 8))
+        XCTAssertNotEqual(slider.value as? String, "0%")
+        if !back.exists {
+            app.otherElements["reader.navigator"].tap()
+        }
+        XCTAssertTrue(back.waitForExistence(timeout: 3))
+        back.tap()
+        XCTAssertTrue(book.waitForExistence(timeout: 5))
+        book.press(forDuration: 1)
+        XCTAssertTrue(app.buttons["library.share"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
     func testBackFromSpeedReaderExitsTheBook() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing"]
@@ -452,12 +490,5 @@ private extension FastReaderUITests {
         XCTAssertTrue(app.buttons["reader.appearance"].waitForExistence(timeout: 3))
         app.buttons["reader.appearance"].tap()
         XCTAssertTrue(app.switches["reader.appearance.scroll"].waitForExistence(timeout: 3))
-    }
-
-    func attachScreenshot(named name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
     }
 }
