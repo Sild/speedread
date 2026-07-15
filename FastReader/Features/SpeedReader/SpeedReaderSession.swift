@@ -127,6 +127,8 @@ final class SpeedReaderSession {
             try load(element, preferredElementID: nil, preferredOffset: nil)
             tokenIndex = max(tokens.count - 1, 0)
             emitPosition(reachedPublicationEnd: false)
+        } catch let error as SpeedContentError {
+            failureMessage = error.userMessage
         } catch {
             failureMessage = String(localized: "speed.error.navigation")
         }
@@ -140,6 +142,8 @@ final class SpeedReaderSession {
             }
             try load(element, preferredElementID: nil, preferredOffset: nil)
             emitPosition(reachedPublicationEnd: false)
+        } catch let error as SpeedContentError {
+            failureMessage = error.userMessage
         } catch {
             failureMessage = String(localized: "speed.error.navigation")
         }
@@ -177,6 +181,9 @@ final class SpeedReaderSession {
             }
             try load(element, preferredElementID: nil, preferredOffset: nil)
             emitPosition(reachedPublicationEnd: false)
+        } catch let error as SpeedContentError {
+            pause()
+            failureMessage = error.userMessage
         } catch {
             pause()
             failureMessage = String(localized: "speed.error.navigation")

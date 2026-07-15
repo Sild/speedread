@@ -12,8 +12,8 @@ iOS/iPadOS 17 or newer.
 
 ### Import and open
 
-1. A person selects one or more EPUB files in FastReader, or chooses FastReader
-   from the Files/share-sheet Open With flow.
+1. A person selects one or more EPUB or PDF files in FastReader, or chooses
+   FastReader from the Files/share-sheet Open With flow.
 2. FastReader copies and validates each file inside its sandbox.
 3. Successful external imports open immediately in regular reading mode.
 4. A byte-identical import opens the existing library item and preserves its
@@ -52,8 +52,8 @@ iOS/iPadOS 17 or newer.
   the same select-or-create action. Each submission is one tag, so spaces are
   part of the name and commas have no delimiter meaning. A failed Save keeps the
   sheet and draft visible with a retry message.
-- Deletion removes the sandbox file, derived cover, tag links, and local
-  metadata.
+- Deletion removes the sandbox file, derived cover, versioned PDF text cache,
+  tag links, and local metadata.
 - Tags with no active book memberships are omitted immediately, including
   orphan records created by older application builds.
 
@@ -118,6 +118,29 @@ iOS/iPadOS 17 or newer.
 - Apple-specific renderer extensions, FairPlay purchases, ACSM/AZW/ODM, and
   exact Apple Books rendering parity are not supported commitments.
 
+## PDF Compatibility
+
+- Support DRM-free, password-free PDFs that Readium 3.8.0 and PDFKit can open.
+- Regular reading uses Readium's native PDF navigator with vertical scrolling
+  enabled by default and an independently persisted pagination option.
+  Continuous mode fits against the largest page so mixed page boxes do not
+  enlarge a small cover independently. Table-of-contents navigation, themes,
+  and serialized page locators remain available; PDF typography and margin
+  controls are not shown.
+- Speed reading uses embedded line text when it is sufficiently complete. For
+  image-only or sparse pages, Vision performs accurate OCR entirely on-device
+  at a bounded 2048-pixel render size.
+- OCR observations sharing a baseline are assembled into logical lines before
+  confidence checks. Column detection requires repeated, vertically overlapping
+  structure so isolated headings, justified fragments, and page numbers do not
+  make ordinary prose ambiguous.
+- Speed mode supports Latin and Cyrillic single-column prose and clearly
+  separated two-column prose. It pauses before ambiguous columns, table-like
+  pages, unsupported scripts, empty text, or OCR below the confidence gates.
+- Copy-restricted PDFs remain readable in regular mode but cannot enter speed
+  mode. Password entry, annotations, search, manual OCR correction, PDF-to-EPUB
+  export, and cloud or LLM reconstruction are not supported.
+
 ## Error and Recovery States
 
 - Distinguish unsupported type, protected content, malformed publication,
@@ -131,8 +154,8 @@ iOS/iPadOS 17 or newer.
 ## Privacy and Exclusions
 
 - No account, analytics, advertising, telemetry, or custom network service.
-- Book content and reading activity remain on-device in the MVP.
-- iCloud sync and PDF are designed future milestones, not hidden partial
-implementations.
+- Book content, OCR, derived text, and reading activity remain on-device.
+- Private iCloud sync remains a future milestone, not a hidden partial
+  implementation.
 - Search inside publication text, bookmarks, highlights, notes, DRM, OPDS,
   text-to-speech, and store purchasing are outside the MVP.

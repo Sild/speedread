@@ -14,7 +14,7 @@ struct ImportTests {
     @Test("Readium extracts Cyrillic EPUB metadata")
     func readiumMetadata() async throws {
         let url = try fixture(named: "epub3-cyrillic")
-        let metadata = try await ReadiumPublicationService().inspectEPUB(at: url)
+        let metadata = try await ReadiumPublicationService().inspectPublication(at: url)
 
         #expect(metadata.title == "Путешествие Swift")
         #expect(metadata.authorsDisplay == "Иван Петров")
@@ -58,8 +58,11 @@ struct ImportTests {
     @Test("Readium extracts bounded speed content and restores it in regular mode")
     func speedContentRoundTrip() async throws {
         let service = ReadiumPublicationService()
+        let fileStore = try ApplicationSupportBookFileStore(rootURL: temporaryRoot())
         let provider = try await service.makeSpeedContentProvider(
-            at: fixture(named: "epub3-cyrillic")
+            at: fixture(named: "epub3-cyrillic"),
+            contentHash: "epub-fixture",
+            fileStore: fileStore
         )
         let firstCandidate = try await provider.start(at: nil)
         let first = try #require(firstCandidate)
@@ -90,6 +93,7 @@ struct ImportTests {
         let speedSnapshot = try #require(session.currentPosition())
         try await assertRegularSpeedRoundTrip(
             service: service,
+            fileStore: fileStore,
             activeToken: activeToken,
             speedSnapshot: speedSnapshot
         )
@@ -107,6 +111,7 @@ struct ImportTests {
 
     private func assertRegularSpeedRoundTrip(
         service: ReadiumPublicationService,
+        fileStore: ApplicationSupportBookFileStore,
         activeToken: SpeedToken,
         speedSnapshot: SpeedPositionSnapshot
     ) async throws {
@@ -132,7 +137,9 @@ struct ImportTests {
             at: .now
         )
         let resumedProvider = try await service.makeSpeedContentProvider(
-            at: fixture(named: "epub3-cyrillic")
+            at: fixture(named: "epub3-cyrillic"),
+            contentHash: "epub-fixture",
+            fileStore: fileStore
         )
         let resumedSession = SpeedReaderSession(
             provider: resumedProvider,
@@ -146,9 +153,9 @@ struct ImportTests {
     @Test("Readium accepts EPUB 2 and fixed-layout EPUB 3")
     func supportedEPUBVariants() async throws {
         let service = ReadiumPublicationService()
-        let epub2 = try await service.inspectEPUB(at: fixture(named: "epub2"))
-        let fixed = try await service.inspectEPUB(at: fixture(named: "epub3-fixed"))
-        let longChapter = try await service.inspectEPUB(at: fixture(named: "long-chapter"))
+        let epub2 = try await service.inspectPublication(at: fixture(named: "epub2"))
+        let fixed = try await service.inspectPublication(at: fixture(named: "epub3-fixed"))
+        let longChapter = try await service.inspectPublication(at: fixture(named: "long-chapter"))
 
         #expect(epub2.title == "EPUB 2 Fixture")
         #expect(epub2.layout == .reflowable)
@@ -163,7 +170,7 @@ struct ImportTests {
     func protectedEPUB() async throws {
         var receivedError: PublicationServiceError?
         do {
-            _ = try await ReadiumPublicationService().inspectEPUB(at: fixture(named: "protected"))
+            _ = try await ReadiumPublicationService().inspectPublication(at: fixture(named: "protected"))
         } catch let error as PublicationServiceError {
             receivedError = error
         }

@@ -961,6 +961,46 @@
         }
       }
     },
+    "speed.unavailable.copyRestricted" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This PDF allows reading but prohibits text extraction. Speed mode is unavailable."
+          }
+        }
+      }
+    },
+    "speed.unavailable.lowConfidence" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page %lld has an ambiguous text layout, so speed mode paused before presenting unreliable text."
+          }
+        }
+      }
+    },
+    "speed.unavailable.ocrFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FastReader could not recognize reliable text on page %lld."
+          }
+        }
+      }
+    },
+    "speed.unavailable.unsupportedText" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page %lld does not contain supported Latin or Cyrillic prose for speed mode."
+          }
+        }
+      }
+    },
     "speed.unavailable.title" : {
       "localizations" : {
         "en" : {

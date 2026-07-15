@@ -28,6 +28,7 @@ struct ImportedPublication: Equatable, Sendable {
 }
 
 struct PublicationMetadataSnapshot: Equatable, Sendable {
+    let format: PublicationFormat
     let title: String?
     let authorsDisplay: String
     let mediaType: String

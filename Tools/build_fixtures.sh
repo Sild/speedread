@@ -45,3 +45,5 @@ build_epub "$long_source" "$fixtures/long-chapter.epub" META-INF EPUB -x EPUB/co
 rm -rf "$long_source"
 
 rm -f "$sources/EPUB3/EPUB/cover.png"
+
+xcrun swift "$root/Tools/build_pdf_fixtures.swift" "$fixtures"

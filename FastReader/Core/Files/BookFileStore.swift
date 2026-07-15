@@ -26,12 +26,16 @@ protocol BookFileStore: Sendable {
     func commit(
         stagedFile: StagedBookFile,
         contentHash: String,
+        format: PublicationFormat,
         coverPNGData: Data?
     ) async throws -> StoredPublicationFiles
     func repair(stagedFile: StagedBookFile, relativePath: String) async throws
     func fileExists(relativePath: String) async -> Bool
     func fileURL(relativePath: String) async throws -> URL
     func data(relativePath: String) async throws -> Data
+    func derivedData(relativePath: String) async throws -> Data?
+    func writeDerivedData(_ data: Data, relativePath: String) async throws
+    func removeDerivedData(contentHash: String) async throws
     func remove(relativePaths: [String]) async throws
     func discard(stagedFile: StagedBookFile) async
 }
@@ -42,6 +46,7 @@ actor ApplicationSupportBookFileStore: BookFileStore {
     private let stagingURL: URL
     private let booksURL: URL
     private let coversURL: URL
+    private let derivedURL: URL
 
     init(rootURL: URL? = nil, fileManager: FileManager = .default) throws {
         self.fileManager = fileManager
@@ -59,15 +64,21 @@ actor ApplicationSupportBookFileStore: BookFileStore {
         stagingURL = self.rootURL.appending(path: "Staging", directoryHint: .isDirectory)
         booksURL = self.rootURL.appending(path: "Books", directoryHint: .isDirectory)
         coversURL = self.rootURL.appending(path: "Covers", directoryHint: .isDirectory)
+        derivedURL = self.rootURL.appending(path: "Derived", directoryHint: .isDirectory)
 
         try fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: booksURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: coversURL, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: derivedURL, withIntermediateDirectories: true)
+        var derivedValues = URLResourceValues()
+        derivedValues.isExcludedFromBackup = true
+        var mutableDerivedURL = derivedURL
+        try mutableDerivedURL.setResourceValues(derivedValues)
         try Self.removeChildren(of: stagingURL, fileManager: fileManager)
     }
 
     func stage(sourceURL: URL) throws -> StagedBookFile {
-        guard sourceURL.pathExtension.caseInsensitiveCompare("epub") == .orderedSame else {
+        guard let format = PublicationFormat(pathExtension: sourceURL.pathExtension) else {
             throw BookFileStoreError.unsupportedFile
         }
 
@@ -80,7 +91,7 @@ actor ApplicationSupportBookFileStore: BookFileStore {
 
         let stagedURL = stagingURL
             .appending(path: UUID().uuidString, directoryHint: .notDirectory)
-            .appendingPathExtension("epub")
+            .appendingPathExtension(format.fileExtension)
         do {
             try fileManager.copyItem(at: sourceURL, to: stagedURL)
             let values = try stagedURL.resourceValues(forKeys: [.fileSizeKey])
@@ -110,10 +121,12 @@ actor ApplicationSupportBookFileStore: BookFileStore {
     func commit(
         stagedFile: StagedBookFile,
         contentHash: String,
+        format: PublicationFormat,
         coverPNGData: Data?
     ) throws -> StoredPublicationFiles {
-        let bookRelativePath = "Books/\(contentHash).epub"
-        let bookURL = booksURL.appending(path: "\(contentHash).epub", directoryHint: .notDirectory)
+        let filename = "\(contentHash).\(format.fileExtension)"
+        let bookRelativePath = "Books/\(filename)"
+        let bookURL = booksURL.appending(path: filename, directoryHint: .notDirectory)
         let createdBookFile = !fileManager.fileExists(atPath: bookURL.path)
         if createdBookFile {
             try fileManager.moveItem(at: stagedFile.url, to: bookURL)
@@ -175,6 +188,33 @@ actor ApplicationSupportBookFileStore: BookFileStore {
         try Data(contentsOf: resolvedURL(relativePath: relativePath))
     }
 
+    func derivedData(relativePath: String) throws -> Data? {
+        let url = try resolvedDerivedURL(relativePath: relativePath)
+        guard fileManager.fileExists(atPath: url.path) else {
+            return nil
+        }
+        return try Data(contentsOf: url)
+    }
+
+    func writeDerivedData(_ data: Data, relativePath: String) throws {
+        let url = try resolvedDerivedURL(relativePath: relativePath)
+        try fileManager.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try data.write(to: url, options: .atomic)
+    }
+
+    func removeDerivedData(contentHash: String) throws {
+        guard !contentHash.isEmpty, !contentHash.contains("/"), !contentHash.contains("..") else {
+            throw BookFileStoreError.invalidRelativePath
+        }
+        let url = derivedURL.appending(path: contentHash, directoryHint: .isDirectory)
+        if fileManager.fileExists(atPath: url.path) {
+            try fileManager.removeItem(at: url)
+        }
+    }
+
     func remove(relativePaths: [String]) throws {
         for relativePath in relativePaths {
             let url = try resolvedURL(relativePath: relativePath)
@@ -197,6 +237,21 @@ actor ApplicationSupportBookFileStore: BookFileStore {
         }
         let url = rootURL.appending(path: relativePath, directoryHint: .notDirectory).standardizedFileURL
         guard url.path.hasPrefix(rootURL.standardizedFileURL.path + "/") else {
+            throw BookFileStoreError.invalidRelativePath
+        }
+        return url
+    }
+
+    private func resolvedDerivedURL(relativePath: String) throws -> URL {
+        guard !relativePath.isEmpty,
+              !relativePath.hasPrefix("/"),
+              !relativePath.split(separator: "/").contains("..")
+        else {
+            throw BookFileStoreError.invalidRelativePath
+        }
+        let url = derivedURL.appending(path: relativePath, directoryHint: .notDirectory)
+            .standardizedFileURL
+        guard url.path.hasPrefix(derivedURL.standardizedFileURL.path + "/") else {
             throw BookFileStoreError.invalidRelativePath
         }
         return url

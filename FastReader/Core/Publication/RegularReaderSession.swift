@@ -20,18 +20,24 @@ final class RegularReaderSession {
     @ObservationIgnored var onToggleChrome: (() -> Void)?
 
     @ObservationIgnored private let publication: Publication
-    @ObservationIgnored private let navigator: EPUBNavigatorViewController
+    @ObservationIgnored private let format: PublicationFormat
+    @ObservationIgnored private let navigator: ReaderNavigator
     @ObservationIgnored private let outlineLinks: [UUID: Link]
     @ObservationIgnored private var latestSnapshot: ReaderPositionSnapshot?
     @ObservationIgnored private var reachedPublicationEnd = false
+    @ObservationIgnored private var pdfScrollObservation: NSKeyValueObservation?
+    @ObservationIgnored private weak var pdfScrollView: UIScrollView?
 
     init(
         publication: Publication,
+        format: PublicationFormat,
         initialLocatorJSON: String?,
         highlightLocatorJSON: String?,
-        preferences: RegularReaderPreferences
+        preferences: RegularReaderPreferences,
+        httpServer: HTTPServer
     ) throws {
         self.publication = publication
+        self.format = format
         let initialLocator: Locator? = if let initialLocatorJSON {
             try Locator(jsonString: initialLocatorJSON)
         } else {
@@ -44,16 +50,12 @@ final class RegularReaderSession {
         }
         transitionHighlightText = highlightLocator?.text.highlight
 
-        navigator = try EPUBNavigatorViewController(
+        navigator = try Self.makeNavigator(
             publication: publication,
-            initialLocation: initialLocator,
-            config: EPUBNavigatorViewController.Configuration(
-                preferences: Self.readiumPreferences(preferences),
-                contentInset: [
-                    .compact: (top: 82, bottom: 112),
-                    .regular: (top: 96, bottom: 120)
-                ]
-            )
+            format: format,
+            initialLocator: initialLocator,
+            preferences: preferences,
+            httpServer: httpServer
         )
 
         let flattenedOutline = Self.flatten(publication.manifest.tableOfContents)
@@ -61,47 +63,64 @@ final class RegularReaderSession {
         outlineLinks = flattenedOutline.links
         progress = initialLocator?.locations.totalProgression ?? 0
         sectionTitle = initialLocator?.title
-        navigator.delegate = self
 
-        if let highlightLocator {
-            let canHighlight = highlightLocator.text.highlight?.isEmpty == false
-                && navigator.supports(decorationStyle: .highlight)
-            if canHighlight {
-                navigator.apply(
-                    decorations: [
-                        Decoration(
-                            id: "active-speed-word",
-                            locator: highlightLocator,
-                            style: .highlight(tint: FastReaderPalette.focusUIColor, isActive: true)
-                        )
-                    ],
-                    in: Self.speedTransitionDecorationGroup
-                )
-            }
+        switch navigator {
+        case let .epub(navigator):
+            navigator.delegate = self
+        case let .pdf(navigator):
+            navigator.delegate = self
         }
+
+        Self.applyTransitionHighlight(highlightLocator, to: navigator)
 
         if let initialLocator {
             latestSnapshot = Self.snapshot(from: initialLocator)
         }
     }
 
+    deinit {
+        pdfScrollObservation?.invalidate()
+    }
+
     var viewController: UIViewController {
-        navigator
+        switch navigator {
+        case let .epub(navigator):
+            navigator
+        case let .pdf(navigator):
+            navigator
+        }
     }
 
     func apply(_ preferences: RegularReaderPreferences) {
-        navigator.submitPreferences(Self.readiumPreferences(preferences))
+        switch navigator {
+        case let .epub(navigator):
+            navigator.submitPreferences(Self.epubPreferences(preferences))
+        case let .pdf(navigator):
+            navigator.submitPreferences(Self.pdfPreferences(preferences))
+            updatePDFCompletion(navigator)
+        }
     }
 
     func navigate(to itemID: UUID) async {
         guard let link = outlineLinks[itemID] else {
             return
         }
-        _ = await navigator.go(to: link, options: NavigatorGoOptions(animated: false))
+        switch navigator {
+        case let .epub(navigator):
+            _ = await navigator.go(to: link, options: NavigatorGoOptions(animated: false))
+        case let .pdf(navigator):
+            _ = await navigator.go(to: link, options: NavigatorGoOptions(animated: false))
+        }
     }
 
     func currentPosition() -> ReaderPositionSnapshot? {
-        if let locator = navigator.currentLocation {
+        let locator: Locator? = switch navigator {
+        case let .epub(navigator):
+            navigator.currentLocation
+        case let .pdf(navigator):
+            navigator.currentLocation
+        }
+        if let locator {
             return Self.snapshot(from: locator, reachedPublicationEnd: reachedPublicationEnd)
         }
         return latestSnapshot
@@ -125,6 +144,41 @@ final class RegularReaderSession {
         onPositionChange?(snapshot)
     }
 
+    private func updatePDFCompletion(_ navigator: PDFNavigatorViewController) {
+        guard format == .pdf, let locator = navigator.currentLocation else {
+            return
+        }
+        let pageCount = publication.metadata.numberOfPages ?? 0
+        let nowAtEnd = ReaderEndDetection.hasReachedPDFEnd(
+            currentPage: locator.locations.position,
+            pageCount: pageCount,
+            isScrolling: navigator.settings.scroll,
+            visibleBottom: pdfVisibleBottom,
+            contentHeight: pdfScrollView.map { Double($0.contentSize.height) }
+        )
+        if nowAtEnd != reachedPublicationEnd {
+            reachedPublicationEnd = nowAtEnd
+        }
+        receive(locator)
+    }
+
+    private func updateCurrentPDFCompletion() {
+        guard case let .pdf(navigator) = navigator else {
+            return
+        }
+        updatePDFCompletion(navigator)
+    }
+
+    private var pdfVisibleBottom: Double? {
+        guard let scrollView = pdfScrollView else {
+            return nil
+        }
+        let visibleBottom = scrollView.contentOffset.y
+            + scrollView.bounds.height
+            - scrollView.adjustedContentInset.bottom
+        return Double(visibleBottom)
+    }
+
     private static func snapshot(
         from locator: Locator,
         reachedPublicationEnd: Bool = false
@@ -143,7 +197,7 @@ final class RegularReaderSession {
         )
     }
 
-    private static func readiumPreferences(_ preferences: RegularReaderPreferences) -> EPUBPreferences {
+    private static func epubPreferences(_ preferences: RegularReaderPreferences) -> EPUBPreferences {
         let theme: Theme = switch preferences.theme {
         case .system:
             preferences.prefersDarkSystemTheme ? .dark : .light
@@ -174,6 +228,84 @@ final class RegularReaderSession {
         )
     }
 
+    private static func makeNavigator(
+        publication: Publication,
+        format: PublicationFormat,
+        initialLocator: Locator?,
+        preferences: RegularReaderPreferences,
+        httpServer: HTTPServer
+    ) throws -> ReaderNavigator {
+        switch format {
+        case .epub:
+            try .epub(
+                EPUBNavigatorViewController(
+                    publication: publication,
+                    initialLocation: initialLocator,
+                    config: EPUBNavigatorViewController.Configuration(
+                        preferences: epubPreferences(preferences),
+                        contentInset: [
+                            .compact: (top: 82, bottom: 112),
+                            .regular: (top: 96, bottom: 120)
+                        ]
+                    )
+                )
+            )
+        case .pdf:
+            try .pdf(
+                PDFNavigatorViewController(
+                    publication: publication,
+                    initialLocation: initialLocator,
+                    config: PDFNavigatorViewController.Configuration(
+                        preferences: pdfPreferences(preferences)
+                    ),
+                    httpServer: httpServer
+                )
+            )
+        }
+    }
+
+    private static func applyTransitionHighlight(
+        _ locator: Locator?,
+        to readerNavigator: ReaderNavigator
+    ) {
+        guard let locator,
+              locator.text.highlight?.isEmpty == false,
+              case let .epub(navigator) = readerNavigator,
+              navigator.supports(decorationStyle: .highlight)
+        else {
+            return
+        }
+        navigator.apply(
+            decorations: [
+                Decoration(
+                    id: "active-speed-word",
+                    locator: locator,
+                    style: .highlight(tint: FastReaderPalette.focusUIColor, isActive: true)
+                )
+            ],
+            in: speedTransitionDecorationGroup
+        )
+    }
+
+    static func pdfPreferences(_ preferences: RegularReaderPreferences) -> PDFPreferences {
+        let backgroundColor: UIColor = switch preferences.theme {
+        case .system:
+            preferences.prefersDarkSystemTheme ? .black : .systemBackground
+        case .paper:
+            .white
+        case .dark:
+            .black
+        case .sepia:
+            UIColor(red: 0.98, green: 0.96, blue: 0.91, alpha: 1)
+        }
+        return PDFPreferences(
+            backgroundColor: ReadiumNavigator.Color(uiColor: backgroundColor),
+            fit: .page,
+            scroll: preferences.scroll,
+            scrollAxis: .vertical
+        )
+    }
+
     private static func flatten(_ links: [Link]) -> (items: [ReaderOutlineItem], links: [UUID: Link]) {
         var items: [ReaderOutlineItem] = []
         var linksByID: [UUID: Link] = [:]
@@ -187,13 +319,7 @@ final class RegularReaderSession {
                 } else {
                     String(localized: "reader.toc.untitled")
                 }
-                items.append(
-                    ReaderOutlineItem(
-                        id: id,
-                        title: displayTitle,
-                        depth: depth
-                    )
-                )
+                items.append(ReaderOutlineItem(id: id, title: displayTitle, depth: depth))
                 linksByID[id] = link
                 append(link.children, depth: depth + 1)
             }
@@ -204,9 +330,32 @@ final class RegularReaderSession {
     }
 }
 
+private enum ReaderNavigator {
+    case epub(EPUBNavigatorViewController)
+    case pdf(PDFNavigatorViewController)
+}
+
+private extension RegularReaderSession {
+    static func firstScrollView(in view: UIView) -> UIScrollView? {
+        if let scrollView = view as? UIScrollView {
+            return scrollView
+        }
+        for subview in view.subviews {
+            if let scrollView = firstScrollView(in: subview) {
+                return scrollView
+            }
+        }
+        return nil
+    }
+}
+
 extension RegularReaderSession: EPUBNavigatorDelegate {
     func navigator(_: Navigator, locationDidChange locator: Locator) {
-        receive(locator)
+        if case let .pdf(pdfNavigator) = navigator {
+            updatePDFCompletion(pdfNavigator)
+        } else {
+            receive(locator)
+        }
     }
 
     func navigator(_: Navigator, presentError _: NavigatorError) {
@@ -238,5 +387,26 @@ extension RegularReaderSession: EPUBNavigatorDelegate {
 
     func navigator(_: VisualNavigator, didTapAt _: CGPoint) {
         onToggleChrome?()
+    }
+}
+
+extension RegularReaderSession: @preconcurrency PDFNavigatorDelegate {
+    func navigator(
+        _: PDFNavigatorViewController,
+        setupPDFView view: PDFDocumentView
+    ) {
+        pdfScrollObservation?.invalidate()
+        guard let scrollView = Self.firstScrollView(in: view) else {
+            return
+        }
+        pdfScrollView = scrollView
+        pdfScrollObservation = scrollView.observe(\.contentOffset, options: [.new]) { [weak self] _, _ in
+            MainActor.assumeIsolated {
+                guard let self else {
+                    return
+                }
+                self.updateCurrentPDFCompletion()
+            }
+        }
     }
 }

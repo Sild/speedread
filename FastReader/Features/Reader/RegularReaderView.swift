@@ -16,7 +16,8 @@ struct RegularReaderView: View {
     @AppStorage("reader.font") private var fontRawValue = ReaderFont.publisher.rawValue
     @AppStorage("reader.fontScale") private var fontScale = 1.0
     @AppStorage("reader.pageMargins") private var pageMargins = 1.0
-    @AppStorage("reader.scroll") private var scroll = false
+    @AppStorage("reader.scroll") private var epubScroll = false
+    @AppStorage("reader.pdf.scroll") private var pdfScroll = true
 
     private let book: Book
     private let fileStore: any BookFileStore
@@ -65,8 +66,15 @@ struct RegularReaderView: View {
             .onChange(of: pageMargins) {
                 viewModel.apply(preferences)
             }
-            .onChange(of: scroll) {
-                viewModel.apply(preferences)
+            .onChange(of: epubScroll) {
+                if !isPDF {
+                    viewModel.apply(preferences)
+                }
+            }
+            .onChange(of: pdfScroll) {
+                if isPDF {
+                    viewModel.apply(preferences)
+                }
             }
             .onChange(of: scenePhase) {
                 if scenePhase != .active {
@@ -92,7 +100,7 @@ struct RegularReaderView: View {
                     font: fontBinding,
                     fontScale: $fontScale,
                     pageMargins: $pageMargins,
-                    scroll: $scroll,
+                    scroll: activeScrollBinding,
                     isFixedLayout: book.layout == .fixed
                 )
                 .presentationDetents([.medium, .large])
@@ -245,14 +253,16 @@ struct RegularReaderView: View {
             .background(.regularMaterial)
         }
     }
+}
 
+extension RegularReaderView {
     private var preferences: RegularReaderPreferences {
         RegularReaderPreferences(
             theme: ReaderTheme(rawValue: themeRawValue) ?? .system,
             font: ReaderFont(rawValue: fontRawValue) ?? .publisher,
             fontScale: fontScale,
             pageMargins: pageMargins,
-            scroll: scroll,
+            scroll: isPDF ? pdfScroll : epubScroll,
             prefersDarkSystemTheme: colorScheme == .dark
         )
     }
@@ -260,6 +270,23 @@ struct RegularReaderView: View {
     private func exitBook() {
         viewModel.flushPosition()
         dismiss()
+    }
+
+    private var isPDF: Bool {
+        book.mediaType == PublicationFormat.pdf.defaultMediaType
+    }
+
+    private var activeScrollBinding: Binding<Bool> {
+        Binding(
+            get: { isPDF ? pdfScroll : epubScroll },
+            set: { newValue in
+                if isPDF {
+                    pdfScroll = newValue
+                } else {
+                    epubScroll = newValue
+                }
+            }
+        )
     }
 
     private var displayedSectionTitle: String? {
@@ -396,88 +423,6 @@ private struct ReaderOutlineView: View {
                     .accessibilityIdentifier("reader.toc.close")
                 }
             }
-        }
-    }
-}
-
-private struct ReaderAppearanceView: View {
-    @Binding var theme: ReaderTheme
-    @Binding var font: ReaderFont
-    @Binding var fontScale: Double
-    @Binding var pageMargins: Double
-    @Binding var scroll: Bool
-    let isFixedLayout: Bool
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("reader.appearance.theme") {
-                    Picker("reader.appearance.theme", selection: $theme) {
-                        ForEach(ReaderTheme.allCases) { theme in
-                            Text(theme.localizationKey).tag(theme)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-                Section("reader.appearance.layout") {
-                    Toggle("reader.appearance.scroll", isOn: $scroll)
-                        .accessibilityIdentifier("reader.appearance.scroll")
-                    if !isFixedLayout {
-                        LabeledContent("reader.appearance.margin") {
-                            Stepper(value: $pageMargins, in: 0 ... 4, step: 0.3) {
-                                Text(pageMargins, format: .number.precision(.fractionLength(1)))
-                                    .monospacedDigit()
-                            }
-                        }
-                    }
-                }
-                if !isFixedLayout {
-                    Section("reader.appearance.typography") {
-                        Picker("reader.appearance.font", selection: $font) {
-                            ForEach(ReaderFont.allCases) { font in
-                                Text(font.localizationKey).tag(font)
-                            }
-                        }
-                        LabeledContent("reader.appearance.size") {
-                            Stepper(value: $fontScale, in: 0.7 ... 2, step: 0.1) {
-                                Text(fontScale, format: .percent.precision(.fractionLength(0)))
-                                    .monospacedDigit()
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationTitle("reader.appearance")
-        }
-    }
-}
-
-private extension ReaderTheme {
-    var localizationKey: LocalizedStringKey {
-        switch self {
-        case .system:
-            "reader.theme.system"
-        case .paper:
-            "reader.theme.paper"
-        case .sepia:
-            "reader.theme.sepia"
-        case .dark:
-            "reader.theme.dark"
-        }
-    }
-}
-
-private extension ReaderFont {
-    var localizationKey: LocalizedStringKey {
-        switch self {
-        case .publisher:
-            "reader.font.publisher"
-        case .serif:
-            "reader.font.serif"
-        case .sansSerif:
-            "reader.font.sansSerif"
-        case .openDyslexic:
-            "reader.font.openDyslexic"
         }
     }
 }

@@ -8,6 +8,7 @@
 - Readium Swift Toolkit 3.8.0 through Swift Package Manager
 - UniformTypeIdentifiers and security-scoped URLs for document intake
 - CryptoKit SHA-256 for content identity
+- PDFKit and Vision for serial, on-demand local PDF text extraction
 - XcodeGen for deterministic project generation
 
 ## Components
@@ -43,7 +44,8 @@ source URL through the following transaction:
 1. obtain scoped access and copy to a unique staging URL;
 2. stream SHA-256 without loading the whole publication;
 3. query duplicate identity;
-4. open with `PublicationService` and collect metadata, cover, and layout;
+4. verify the actual EPUB/PDF signature, open with `PublicationService`, and
+   collect metadata, cover, and layout;
 5. move the staged file to a content-addressed Application Support location;
 6. save metadata and file reference in one repository operation;
 7. remove staging and uncommitted final files on error.
@@ -53,9 +55,10 @@ incoming staged file repairs it before the existing record is returned.
 
 ### Publication
 
-The Readium adapter owns asset retrieval, publication opening, navigator
-creation, table of contents, preferences, position observation, and content
-extraction. No feature or persistence module imports Readium types.
+The Readium adapter owns asset retrieval, publication opening, EPUB/PDF
+navigator creation, table of contents, preferences, position observation, and
+content extraction. It owns the GCDWebServer adapter for the lifetime of PDF
+navigators. No feature or persistence module imports Readium types.
 
 The adapter exposes app-owned values:
 
@@ -85,7 +88,7 @@ serialized locator. `SpeedTokenizer` creates grapheme-safe tokens and ORP
 indices. `SpeedReaderSession` owns playback state and a cancellable
 `ContinuousClock` task. UI state changes happen on `@MainActor`.
 
-The Readium adapter coalesces up to 32 adjacent textual elements into a
+For EPUB, the Readium adapter coalesces up to 32 adjacent textual elements into a
 100,000-grapheme chunk, preserving paragraph separators and each element's
 serialized locator. It retains at most three nearby chunks, splits oversized
 extracted elements at a whitespace boundary, and never materializes the whole
@@ -110,6 +113,22 @@ collapses an exact selector to the selector-less resource start. A real resource
 or page change still clears the cursor. This prevents the initial location
 callback from resetting speed mode while avoiding a stale cursor after genuine
 regular-reader navigation.
+
+For PDF, `PDFPageTextExtractor` is a serial actor backed by a separate PDFKit
+document. It rejects copy-restricted content, prefers embedded line selections,
+and falls back to accurate Vision OCR only for an empty or sparse page. OCR
+renders one requested page at a time with a 2048-pixel longest edge. Same-baseline
+Vision fragments are assembled into logical lines with character-weighted
+confidence before geometry checks. Two-column classification requires repeated,
+vertically overlapping column lines; isolated page furniture cannot trigger it.
+Geometry, script, table, and confidence gates prevent questionable text from
+entering the RSVP stream.
+
+Successful page text and stable page-level failures are encoded beneath
+`Derived/<content-hash>/pdf-text-v2/`; rendered page images are never cached.
+`PDFSpeedContentProvider` emits stable `pdf-text-v2:<page>:<segment>` identities,
+keeps the Readium page locator, segments pages above 100,000 graphemes, and owns
+one cancellable task that prefetches the adjacent pages.
 
 ## Domain and Persistence
 
@@ -143,7 +162,8 @@ schema can later participate in CloudKit-compatible synchronization.
 
 - `BookRepository`: fetch library snapshots and tags; fetch by ID/hash; import;
   update status/tags; delete.
-- `BookFileStore`: staging, atomic placement, existence, repair, and deletion.
+- `BookFileStore`: staging, atomic placement, existence, repair, deletion, and
+  versioned derived-data access.
 - `PublicationService`: inspect/open a local publication and create regular or
   speed-reader resources.
 - `ReadingProgressStore`: fetch/save positions and mark books opened while
@@ -177,8 +197,8 @@ BookRepository / SwiftData -> Library
 
 - Scene state flushes pending reading position and pauses speed playback before
   background execution ends.
-- Reader dismissal cancels content iteration and playback, flushes position,
-  and releases the Readium session.
+- Reader dismissal cancels PDF prefetch, content iteration, and playback,
+  flushes position, and releases the Readium session.
 - Persistent-store construction yields either a live dependency container or a
   recovery screen with retry; it never calls a process-terminating API.
 - Import and deletion serialize file/database changes and compensate on partial
@@ -191,7 +211,7 @@ but contains no CloudKit entitlement or network code.
 
 A future `CKSyncEngine` uses the private database:
 
-- immutable `BookAsset` records contain EPUB `CKAsset`s keyed by SHA-256;
+- immutable `BookAsset` records contain publication `CKAsset`s keyed by SHA-256;
 - book metadata fields merge independently by their update timestamp;
 - the newest position timestamp wins, including intentional backward movement;
 - tag membership and deletion use tombstones so removals survive offline edits;
@@ -199,9 +219,18 @@ A future `CKSyncEngine` uses the private database:
   store;
 - account loss pauses sync without affecting local reading.
 
-## PDF Extension
+## PDF Storage and Positioning
 
-The current production parser is EPUB-only. The PDF milestone will add its
-document type, parser/navigator adapter, preferences, routing, and fixtures at
-the existing file, publication, and reading-position boundaries. No placeholder
-PDF branch is kept in the MVP.
+Original PDFs are stored unchanged as `Books/<sha256>.pdf`. The existing media
+type, fixed-layout field, and serialized Readium locator represent PDF books
+without a schema migration. A bounded first-page cover is derived at import.
+Deletion removes the original file, cover, and every derived extractor version.
+
+The regular-reader facade selects the EPUB or PDF navigator internally. PDF
+scrolling is stored separately from the EPUB preference and defaults on. Its
+continuous layout uses Readium's largest-page fit so PDFs with a physically
+smaller cover retain stable scale. Progress reaches 100% on the final page in
+paginated mode and only at the bottom of the final page in scrolling mode;
+moving away lowers progression again while the repository's guarded explicit
+`done` and `canceled` rules remain unchanged. Token offsets add RSVP precision
+but are never interpreted as PDF coordinates.

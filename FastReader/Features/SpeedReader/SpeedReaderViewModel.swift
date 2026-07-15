@@ -7,7 +7,7 @@ final class SpeedReaderViewModel {
     enum State {
         case loading
         case ready(SpeedReaderSession)
-        case unavailable
+        case unavailable(String)
         case failure(String)
     }
 
@@ -46,12 +46,16 @@ final class SpeedReaderViewModel {
             }
             let fileURL = try await fileStore.fileURL(relativePath: book.fileRelativePath)
             let savedPosition = try progressStore.readingPosition(for: book.id)
-            let provider = try await publicationService.makeSpeedContentProvider(at: fileURL)
+            let provider = try await publicationService.makeSpeedContentProvider(
+                at: fileURL,
+                contentHash: book.contentHash,
+                fileStore: fileStore
+            )
             let session = SpeedReaderSession(provider: provider, settings: settings)
             do {
                 try await session.start(from: savedPosition)
-            } catch SpeedContentError.unavailable {
-                state = .unavailable
+            } catch let error as SpeedContentError {
+                state = .unavailable(error.userMessage)
                 return
             }
             session.onPositionChange = { [weak self] snapshot in
@@ -60,8 +64,8 @@ final class SpeedReaderViewModel {
             try progressStore.markOpened(bookID: book.id, at: .now)
             progress = session.progress
             state = .ready(session)
-        } catch SpeedContentError.unavailable {
-            state = .unavailable
+        } catch let error as SpeedContentError {
+            state = .unavailable(error.userMessage)
         } catch {
             state = .failure(String(localized: "speed.error.open"))
         }

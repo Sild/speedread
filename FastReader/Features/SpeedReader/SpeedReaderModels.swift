@@ -84,4 +84,35 @@ enum SpeedContentError: Error, Equatable, Sendable {
     case invalidLocator
     case unavailable
     case extractionFailed
+    case copyRestricted
+    case lowConfidence(page: Int)
+    case unsupportedText(page: Int)
+    case ocrFailed(page: Int)
+}
+
+extension SpeedContentError {
+    @MainActor
+    var userMessage: String {
+        switch self {
+        case .copyRestricted:
+            String(localized: "speed.unavailable.copyRestricted")
+        case let .lowConfidence(page):
+            String.localizedStringWithFormat(
+                String(localized: "speed.unavailable.lowConfidence"),
+                page
+            )
+        case let .unsupportedText(page):
+            String.localizedStringWithFormat(
+                String(localized: "speed.unavailable.unsupportedText"),
+                page
+            )
+        case let .ocrFailed(page):
+            String.localizedStringWithFormat(
+                String(localized: "speed.unavailable.ocrFailed"),
+                page
+            )
+        case .invalidLocator, .unavailable, .extractionFailed:
+            String(localized: "speed.unavailable.message")
+        }
+    }
 }

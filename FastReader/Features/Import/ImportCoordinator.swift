@@ -65,10 +65,11 @@ final class ImportCoordinator {
                 return .repaired(existing.id)
             }
 
-            let metadata = try await publicationService.inspectEPUB(at: stagedFile.url)
+            let metadata = try await publicationService.inspectPublication(at: stagedFile.url)
             let storedFiles = try await fileStore.commit(
                 stagedFile: stagedFile,
                 contentHash: hash,
+                format: metadata.format,
                 coverPNGData: metadata.coverPNGData
             )
             let imported = ImportedPublication(
@@ -109,6 +110,7 @@ final class ImportCoordinator {
                 paths.append(coverPath)
             }
             try await fileStore.remove(relativePaths: paths)
+            try await fileStore.removeDerivedData(contentHash: book.contentHash)
             revision += 1
         } catch {
             failure = ImportFailure(message: Self.message(for: error))

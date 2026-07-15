@@ -52,6 +52,8 @@ targets:
         product: ReadiumStreamer
       - package: Readium
         product: ReadiumNavigator
+      - package: Readium
+        product: ReadiumAdapterGCDWebServer
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -71,6 +73,11 @@ targets:
             LSHandlerRank: Owner
             LSItemContentTypes:
               - org.idpf.epub-container
+          - CFBundleTypeName: PDF Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes:
+              - com.adobe.pdf
         LSSupportsOpeningDocumentsInPlace: true
         LSApplicationCategoryType: public.app-category.books
         ITSAppUsesNonExemptEncryption: false
@@ -109,6 +116,12 @@ targets:
     sources:
       - FastReaderUITests
       - path: FastReaderTests/Fixtures/epub3-cyrillic.epub
+        buildPhase: resources
+      - path: FastReaderTests/Fixtures/pdf-metadata-outline.pdf
+        buildPhase: resources
+      - path: FastReaderTests/Fixtures/pdf-image-only.pdf
+        buildPhase: resources
+      - path: FastReaderTests/Fixtures/pdf-long-scanned.pdf
         buildPhase: resources
     dependencies:
       - target: FastReader

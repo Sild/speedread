@@ -57,7 +57,7 @@ struct LibraryView: View {
         }
         .fileImporter(
             isPresented: $presentsImporter,
-            allowedContentTypes: [.fastReaderEPUB],
+            allowedContentTypes: [.fastReaderEPUB, .pdf],
             allowsMultipleSelection: true
         ) { result in
             switch result {

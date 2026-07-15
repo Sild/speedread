@@ -73,13 +73,14 @@ struct SpeedReaderView: View {
         switch viewModel.state {
         case .loading:
             ProgressView("speed.loading")
+                .accessibilityIdentifier("speed.loading")
         case let .ready(session):
             speedSurface(session)
-        case .unavailable:
+        case let .unavailable(message):
             ContentUnavailableView {
                 Label("speed.unavailable.title", systemImage: "text.magnifyingglass")
             } description: {
-                Text("speed.unavailable.message")
+                Text(message)
             } actions: {
                 Button("speed.return.regular") {
                     returnToRegular()
@@ -123,8 +124,9 @@ struct SpeedReaderView: View {
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: session.isPlaying)
         .alert("speed.error.navigation.title", isPresented: sessionFailurePresented(session)) {
-            Button("action.ok") {
+            Button("speed.return.regular") {
                 session.dismissFailure()
+                returnToRegular()
             }
         } message: {
             Text(session.failureMessage ?? "")
