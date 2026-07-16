@@ -171,6 +171,26 @@ struct CloudSyncPersistenceTests {
         #expect(bookState.mutationID != afterEPUB.first { $0.key.kind == .book }?.mutationID)
     }
 
+    @Test("A queued EPUB asset resolves to its upload record")
+    func epubAssetRecordResolution() throws {
+        let container = try PersistenceController.makeContainer(inMemory: true)
+        let repository = SwiftDataBookRepository(modelContainer: container)
+        _ = try repository.insert(
+            importedPublication(hash: "asset-hash", extension: "epub"),
+            importedAt: date(1)
+        )
+
+        let record = try repository.syncRecord(
+            for: .bookAsset(contentHash: "asset-hash")
+        )
+
+        #expect(
+            record == .bookAsset(
+                SyncedBookAsset(contentHash: "asset-hash", fileByteCount: 42)
+            )
+        )
+    }
+
     @Test("Retained tags reuse their logical membership without a new mutation")
     func membershipIdentityIsStable() throws {
         let container = try PersistenceController.makeContainer(inMemory: true)

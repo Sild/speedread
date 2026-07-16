@@ -379,8 +379,10 @@ extension SwiftDataBookRepository {
     }
 
     private func bookRecord(for key: LibrarySyncRecordKey) throws -> BookRecord? {
-        try context.fetch(FetchDescriptor<BookRecord>())
-            .first { LibrarySyncRecordKey.book(contentHash: $0.contentHash) == key }
+        try context.fetch(FetchDescriptor<BookRecord>()).first {
+            key == .book(contentHash: $0.contentHash)
+                || key == .bookAsset(contentHash: $0.contentHash)
+        }
     }
 
     private func tagRecord(for key: LibrarySyncRecordKey) throws -> TagRecord? {
