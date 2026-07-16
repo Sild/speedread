@@ -120,4 +120,4 @@ echo "Launching FastReader..."
 xcrun devicectl device process launch \
     --device "$core_device_id" \
     --terminate-existing \
-    com.sild.fastreader
+    com.sild.fastreader.app

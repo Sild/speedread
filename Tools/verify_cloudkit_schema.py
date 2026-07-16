@@ -8,6 +8,7 @@ from pathlib import Path
 
 
 CONTAINER_IDENTIFIER = "iCloud.com.sild.fastreader"
+SYSTEM_RECORD_TYPES = {"Users"}
 RECORD_TYPE_PATTERN = re.compile(
     r"\bRECORD\s+TYPE\s+([A-Za-z][A-Za-z0-9_]*)\s*\((.*?)\)\s*;",
     re.IGNORECASE | re.DOTALL,
@@ -38,6 +39,8 @@ def parse_schema(path: Path) -> dict[str, dict[str, str]]:
     records: dict[str, dict[str, str]] = {}
     for record_match in RECORD_TYPE_PATTERN.finditer(source):
         record_type = record_match.group(1)
+        if record_type in SYSTEM_RECORD_TYPES:
+            continue
         if record_type in records:
             raise VerificationError(f"{path}: duplicate record type {record_type}")
 
@@ -117,7 +120,7 @@ def verify_local(args: argparse.Namespace) -> None:
     )
 
     project_source = args.project.read_text(encoding="utf-8")
-    if "PRODUCT_BUNDLE_IDENTIFIER: com.sild.fastreader" not in project_source:
+    if "PRODUCT_BUNDLE_IDENTIFIER: com.sild.fastreader.app" not in project_source:
         raise VerificationError("project.yml: FastReader bundle identifier is missing")
 
     debug_source = args.debug_config.read_text(encoding="utf-8")

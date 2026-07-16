@@ -845,7 +845,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.sild.fastreader;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sild.fastreader.app;
 				PRODUCT_NAME = FastReader;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
@@ -865,7 +865,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.sild.fastreader;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sild.fastreader.app;
 				PRODUCT_NAME = FastReader;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;

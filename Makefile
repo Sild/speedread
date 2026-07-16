@@ -81,6 +81,7 @@ device-deploy:
 		./Tools/device_deploy.sh
 
 cloudkit-check:
+	/usr/bin/python3 Tools/test_verify_cloudkit_schema.py
 	./Tools/cloudkit_setup.sh check
 
 cloudkit-validate-development:
