@@ -10,7 +10,7 @@ enum PersistenceController {
         if !inMemory, let applicationSupport = applicationSupportURLs.first {
             try FileManager.default.createDirectory(at: applicationSupport, withIntermediateDirectories: true)
         }
-        let schema = Schema(versionedSchema: FastReaderSchemaV1.self)
+        let schema = Schema(versionedSchema: FastReaderSchemaV2.self)
         let configuration = ModelConfiguration(
             "FastReader",
             schema: schema,

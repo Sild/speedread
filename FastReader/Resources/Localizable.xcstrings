@@ -1091,6 +1091,166 @@
         }
       }
     },
+    "sync.action.retry" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry Sync"
+          }
+        }
+      }
+    },
+    "sync.action.useNewAccount" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use This iCloud Account"
+          }
+        }
+      }
+    },
+    "sync.status.accountChange.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync is paused to prevent your local library from being uploaded to a different iCloud account without permission."
+          }
+        }
+      }
+    },
+    "sync.status.accountChange.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Account Changed"
+          }
+        }
+      }
+    },
+    "sync.status.downloading.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FastReader is verifying and saving an EPUB from your private iCloud library."
+          }
+        }
+      }
+    },
+    "sync.status.downloading.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloading Book"
+          }
+        }
+      }
+    },
+    "sync.status.localOnly.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your library remains available on this device. Sign in to iCloud and retry to resume private EPUB sync."
+          }
+        }
+      }
+    },
+    "sync.status.localOnly.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local Library Only"
+          }
+        }
+      }
+    },
+    "sync.status.retryable.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your local changes are safe and will remain queued until iCloud is reachable."
+          }
+        }
+      }
+    },
+    "sync.status.retryable.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync Paused"
+          }
+        }
+      }
+    },
+    "sync.status.syncing.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "FastReader is reconciling EPUB books, progress, statuses, and tags."
+          }
+        }
+      }
+    },
+    "sync.status.syncing.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Syncing with iCloud"
+          }
+        }
+      }
+    },
+    "sync.status.unavailable.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud sync is unavailable. Your local library and pending changes are unchanged."
+          }
+        }
+      }
+    },
+    "sync.status.unavailable.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Sync Unavailable"
+          }
+        }
+      }
+    },
+    "sync.status.upToDate.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your private EPUB library is up to date on this device. PDFs remain local only."
+          }
+        }
+      }
+    },
+    "sync.status.upToDate.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Up to Date"
+          }
+        }
+      }
+    },
     "status.canceled" : {
       "localizations" : {
         "en" : {

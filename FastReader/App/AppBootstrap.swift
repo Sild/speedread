@@ -50,7 +50,11 @@ final class AppBootstrap {
             } else if seedsFilterLibrary {
                 try seedFilterLibrary(in: container)
             }
+            let cloudSyncStatus = CloudSyncStatusModel()
             let repository = SwiftDataBookRepository(modelContainer: container)
+            repository.setCloudMutationHandler {
+                cloudSyncStatus.localMutationDidQueue()
+            }
             let failsTagWrites = ProcessInfo.processInfo.arguments.contains("-ui-testing-fail-tag-save")
             let bookRepository: any BookRepository = if isUITesting, failsTagWrites {
                 UITestTagWriteFailureRepository(base: repository)
@@ -66,6 +70,14 @@ final class AppBootstrap {
                 fileStore: fileStore,
                 publicationService: publicationService
             )
+            let cloudSyncCoordinator = isUITesting || Self.isRunningTests
+                ? nil
+                : CloudKitSyncCoordinator(
+                    repository: repository,
+                    fileStore: fileStore,
+                    publicationService: publicationService,
+                    statusModel: cloudSyncStatus
+                )
             return .ready(
                 AppDependencies(
                     modelContainer: container,
@@ -73,7 +85,9 @@ final class AppBootstrap {
                     readingProgressStore: repository,
                     bookFileStore: fileStore,
                     publicationService: publicationService,
-                    importCoordinator: importCoordinator
+                    importCoordinator: importCoordinator,
+                    cloudSyncStatus: cloudSyncStatus,
+                    cloudSyncCoordinator: cloudSyncCoordinator
                 )
             )
         } catch {
@@ -86,6 +100,10 @@ final class AppBootstrap {
             path: "FastReader-UITesting-\(ProcessInfo.processInfo.processIdentifier)",
             directoryHint: .isDirectory
         )
+    }
+
+    private static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     private static func seedLargeLibrary(in container: ModelContainer) throws {
@@ -266,6 +284,8 @@ struct AppDependencies {
     let bookFileStore: any BookFileStore
     let publicationService: any PublicationService
     let importCoordinator: ImportCoordinator
+    let cloudSyncStatus: CloudSyncStatusModel
+    let cloudSyncCoordinator: CloudKitSyncCoordinator?
 }
 
 struct BootstrapView: View {
@@ -279,9 +299,20 @@ struct BootstrapView: View {
                 progressStore: dependencies.readingProgressStore,
                 fileStore: dependencies.bookFileStore,
                 publicationService: dependencies.publicationService,
-                importCoordinator: dependencies.importCoordinator
+                importCoordinator: dependencies.importCoordinator,
+                cloudSyncStatus: dependencies.cloudSyncStatus,
+                cloudSyncCoordinator: dependencies.cloudSyncCoordinator
             )
             .modelContainer(dependencies.modelContainer)
+            .task {
+                await dependencies.cloudSyncCoordinator?.start()
+            }
+            .task(id: dependencies.cloudSyncStatus.localMutationRevision) {
+                guard dependencies.cloudSyncStatus.localMutationRevision > 0 else {
+                    return
+                }
+                await dependencies.cloudSyncCoordinator?.sendQueuedLocalChanges()
+            }
         case .failure:
             ContentUnavailableView {
                 Label("library.startup.error.title", systemImage: "externaldrive.badge.exclamationmark")

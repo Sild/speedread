@@ -15,7 +15,7 @@ enum PublicationServiceError: Error, Equatable, Sendable {
 }
 
 @MainActor
-protocol PublicationService: AnyObject {
+protocol PublicationService: AnyObject, Sendable {
     func inspectPublication(at url: URL) async throws -> PublicationMetadataSnapshot
     func makeRegularReaderSession(
         at url: URL,

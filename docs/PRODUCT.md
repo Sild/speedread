@@ -157,11 +157,28 @@ iOS/iPadOS 17 or newer.
 - Offer retry when meaningful and direct the person back to the library when a
   publication cannot be opened.
 
+## Private iCloud Sync
+
+- Sync DRM-free EPUB originals, metadata, status, reading position, tags, and
+  tag membership through the user's private iCloud database.
+- Keep the local SwiftData database and Application Support files authoritative;
+  importing and reading continue offline while changes remain durably queued.
+- Resolve metadata, status, and position independently by their update times.
+  A newer backward reading movement is intentional and must not be replaced by
+  the numerically larger progression.
+- Preserve tag, membership, and book deletion tombstones across offline edits.
+- Verify every downloaded EPUB by SHA-256 and Readium inspection before making
+  it available. Derive covers locally rather than synchronizing them.
+- Keep PDFs, OCR text, derived caches, reading preferences, and `lastOpenedAt`
+  local to each device.
+- Sign-out pauses synchronization without deleting or blocking the local
+  library. A different iCloud account requires explicit confirmation before
+  any local library data can be uploaded to it.
+
 ## Privacy and Exclusions
 
-- No account, analytics, advertising, telemetry, or custom network service.
-- Book content, OCR, derived text, and reading activity remain on-device.
-- Private iCloud sync remains a future milestone, not a hidden partial
-  implementation.
+- No FastReader account, analytics, advertising, telemetry, or custom backend.
+- EPUB content and its library state may be stored in the user's private iCloud
+  database. PDF content, OCR, derived text, and preferences remain on-device.
 - Search inside publication text, bookmarks, highlights, notes, DRM, OPDS,
   text-to-speech, and store purchasing are outside the MVP.

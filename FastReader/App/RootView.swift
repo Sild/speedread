@@ -8,6 +8,8 @@ struct RootView: View {
     let fileStore: any BookFileStore
     let publicationService: any PublicationService
     let importCoordinator: ImportCoordinator
+    let cloudSyncStatus: CloudSyncStatusModel
+    let cloudSyncCoordinator: CloudKitSyncCoordinator?
 
     var body: some View {
         Group {
@@ -27,7 +29,9 @@ struct RootView: View {
                 progressStore: progressStore,
                 fileStore: fileStore,
                 publicationService: publicationService,
-                importCoordinator: importCoordinator
+                importCoordinator: importCoordinator,
+                cloudSyncStatus: cloudSyncStatus,
+                cloudSyncCoordinator: cloudSyncCoordinator
             )
         }
     }
@@ -42,7 +46,9 @@ struct RootView: View {
                     progressStore: progressStore,
                     fileStore: fileStore,
                     publicationService: publicationService,
-                    importCoordinator: importCoordinator
+                    importCoordinator: importCoordinator,
+                    cloudSyncStatus: cloudSyncStatus,
+                    cloudSyncCoordinator: cloudSyncCoordinator
                 )
             }
         }

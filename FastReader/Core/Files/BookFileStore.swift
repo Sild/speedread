@@ -18,6 +18,7 @@ enum BookFileStoreError: Error, Equatable, Sendable {
     case unsupportedFile
     case inaccessibleSource
     case invalidRelativePath
+    case contentHashMismatch(expected: String, actual: String)
 }
 
 protocol BookFileStore: Sendable {
@@ -30,6 +31,7 @@ protocol BookFileStore: Sendable {
         coverPNGData: Data?
     ) async throws -> StoredPublicationFiles
     func repair(stagedFile: StagedBookFile, relativePath: String) async throws
+    func stageEPUBAsset(sourceURL: URL, expectedContentHash: String) async throws -> StagedBookFile
     func fileExists(relativePath: String) async -> Bool
     func fileURL(relativePath: String) async throws -> URL
     func data(relativePath: String) async throws -> Data
@@ -170,6 +172,34 @@ actor ApplicationSupportBookFileStore: BookFileStore {
             try fileManager.removeItem(at: stagedFile.url)
         } else {
             try fileManager.moveItem(at: stagedFile.url, to: destination)
+        }
+    }
+
+    func stageEPUBAsset(sourceURL: URL, expectedContentHash: String) throws -> StagedBookFile {
+        let stagedURL = stagingURL
+            .appending(path: UUID().uuidString, directoryHint: .notDirectory)
+            .appendingPathExtension(PublicationFormat.epub.fileExtension)
+        do {
+            try fileManager.copyItem(at: sourceURL, to: stagedURL)
+            let values = try stagedURL.resourceValues(forKeys: [.fileSizeKey])
+            let stagedFile = StagedBookFile(
+                url: stagedURL,
+                originalFilename: "\(expectedContentHash).epub",
+                byteCount: Int64(values.fileSize ?? 0)
+            )
+            let actualContentHash = try contentHash(of: stagedFile)
+            guard actualContentHash == expectedContentHash.lowercased() else {
+                throw BookFileStoreError.contentHashMismatch(
+                    expected: expectedContentHash.lowercased(),
+                    actual: actualContentHash
+                )
+            }
+            return stagedFile
+        } catch {
+            if fileManager.fileExists(atPath: stagedURL.path) {
+                try? fileManager.removeItem(at: stagedURL)
+            }
+            throw error
         }
     }
 

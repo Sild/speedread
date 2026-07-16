@@ -377,7 +377,7 @@ struct PersistenceTests {
         let fetched = try container.mainContext.fetch(FetchDescriptor<BookRecord>())
         #expect(fetched.count == 1)
         #expect(fetched.first?.title == "Fixture")
-        #expect(FastReaderMigrationPlan.schemas.count == 1)
+        #expect(FastReaderMigrationPlan.schemas.count == 2)
     }
 
     @Test("Reading position round-trips and automates status")

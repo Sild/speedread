@@ -3,10 +3,17 @@ import SwiftData
 
 @MainActor
 final class SwiftDataBookRepository: BookRepository, ReadingProgressStore {
-    private let context: ModelContext
+    let context: ModelContext
+    let syncJournal: CloudSyncJournal
+    private var cloudMutationHandler: (() -> Void)?
 
     init(modelContainer: ModelContainer) {
         context = modelContainer.mainContext
+        syncJournal = CloudSyncJournal(context: context)
+    }
+
+    func setCloudMutationHandler(_ handler: @escaping () -> Void) {
+        cloudMutationHandler = handler
     }
 
     func books(matching filter: LibraryFilter) throws -> [Book] {
@@ -50,6 +57,24 @@ final class SwiftDataBookRepository: BookRepository, ReadingProgressStore {
             throw BookRepositoryError.duplicateContent(publication.contentHash)
         }
 
+        let tombstones = try context.fetch(FetchDescriptor<BookRecord>())
+            .filter { $0.contentHash == publication.contentHash && $0.deletedAt != nil }
+        if let tombstone = tombstones.max(by: { $0.metadataUpdatedAt < $1.metadataUpdatedAt }) {
+            tombstone.title = publication.title
+            tombstone.authorsDisplay = publication.authorsDisplay
+            tombstone.mediaType = publication.mediaType
+            tombstone.layoutRawValue = publication.layout.rawValue
+            tombstone.fileRelativePath = publication.fileRelativePath
+            tombstone.coverRelativePath = publication.coverRelativePath
+            tombstone.fileByteCount = publication.fileByteCount
+            tombstone.metadataUpdatedAt = importedAt
+            tombstone.deletedAt = nil
+            try queueBook(tombstone, assetAction: .save, at: importedAt)
+            try context.save()
+            notifyCloudMutation(for: tombstone)
+            return try makeBook(tombstone)
+        }
+
         let record = BookRecord(
             id: UUID(),
             contentHash: publication.contentHash,
@@ -63,7 +88,9 @@ final class SwiftDataBookRepository: BookRepository, ReadingProgressStore {
             importedAt: importedAt
         )
         context.insert(record)
+        try queueBook(record, assetAction: .save, at: importedAt)
         try context.save()
+        notifyCloudMutation(for: record)
         return try makeBook(record)
     }
 
@@ -71,79 +98,9 @@ final class SwiftDataBookRepository: BookRepository, ReadingProgressStore {
         let record = try requiredBookRecord(id: bookID)
         record.statusRawValue = status.rawValue
         record.statusUpdatedAt = date
+        try queueBook(record, at: date)
         try context.save()
-    }
-
-    func setTags(_ displayNames: [String], for bookID: UUID, at date: Date) throws {
-        _ = try requiredBookRecord(id: bookID)
-        var requested: [String: String] = [:]
-        for displayName in displayNames {
-            let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-            let canonical = TagNormalizer.canonicalize(trimmed)
-            guard !canonical.isEmpty else {
-                throw BookRepositoryError.emptyTag
-            }
-            requested[canonical] = requested[canonical] ?? trimmed
-        }
-
-        let tagRecords = try context.fetch(FetchDescriptor<TagRecord>())
-        let allLinks = try context.fetch(FetchDescriptor<BookTagRecord>())
-        let activeLinks = allLinks.filter { $0.bookID == bookID && $0.deletedAt == nil }
-        let tagsByCanonical = tagRecords.reduce(into: [String: TagRecord]()) { result, tag in
-            if result[tag.canonicalName] == nil {
-                result[tag.canonicalName] = tag
-            }
-        }
-
-        for link in activeLinks {
-            link.deletedAt = date
-            link.updatedAt = date
-        }
-
-        var requestedTagIDs: Set<UUID> = []
-        for (canonical, displayName) in requested {
-            let tag: TagRecord
-            if let existing = tagsByCanonical[canonical] {
-                tag = existing
-                tag.deletedAt = nil
-                tag.updatedAt = date
-            } else {
-                tag = TagRecord(
-                    id: UUID(),
-                    canonicalName: canonical,
-                    displayName: displayName,
-                    createdAt: date
-                )
-                context.insert(tag)
-            }
-            requestedTagIDs.insert(tag.id)
-            context.insert(BookTagRecord(id: UUID(), bookID: bookID, tagID: tag.id, createdAt: date))
-        }
-
-        retireOrphanedTags(
-            tagRecords,
-            activeLinks: allLinks,
-            replacingBookID: bookID,
-            retainedTagIDs: requestedTagIDs,
-            at: date
-        )
-
-        try context.save()
-    }
-
-    func delete(bookID: UUID, at date: Date) throws -> Book {
-        let record = try requiredBookRecord(id: bookID)
-        let book = try makeBook(record)
-        record.deletedAt = date
-        record.metadataUpdatedAt = date
-        let links = try context.fetch(FetchDescriptor<BookTagRecord>())
-            .filter { $0.bookID == bookID && $0.deletedAt == nil }
-        for link in links {
-            link.deletedAt = date
-            link.updatedAt = date
-        }
-        try context.save()
-        return book
+        notifyCloudMutation(for: record)
     }
 
     func readingPosition(for bookID: UUID) throws -> ReadingPosition? {
@@ -192,7 +149,9 @@ final class SwiftDataBookRepository: BookRepository, ReadingProgressStore {
             record.statusRawValue = nextStatus.rawValue
             record.statusUpdatedAt = position.updatedAt
         }
+        try queueBook(record, at: position.updatedAt)
         try context.save()
+        notifyCloudMutation(for: record)
     }
 
     private func activeBookRecords() throws -> [BookRecord] {
@@ -203,33 +162,14 @@ final class SwiftDataBookRepository: BookRepository, ReadingProgressStore {
         try context.fetch(FetchDescriptor<TagRecord>()).filter { $0.deletedAt == nil }
     }
 
-    private func retireOrphanedTags(
-        _ tagRecords: [TagRecord],
-        activeLinks: [BookTagRecord],
-        replacingBookID: UUID,
-        retainedTagIDs: Set<UUID>,
-        at date: Date
-    ) {
-        let activeTagIDsOutsideBook = Set(
-            activeLinks.lazy
-                .filter { $0.bookID != replacingBookID && $0.deletedAt == nil }
-                .map(\.tagID)
-        )
-        let activeTagIDs = activeTagIDsOutsideBook.union(retainedTagIDs)
-        for tag in tagRecords where tag.deletedAt == nil && !activeTagIDs.contains(tag.id) {
-            tag.deletedAt = date
-            tag.updatedAt = date
-        }
-    }
-
-    private func requiredBookRecord(id: UUID) throws -> BookRecord {
+    func requiredBookRecord(id: UUID) throws -> BookRecord {
         guard let record = try activeBookRecords().first(where: { $0.id == id }) else {
             throw BookRepositoryError.missingBook(id)
         }
         return record
     }
 
-    private func makeBook(_ record: BookRecord) throws -> Book {
+    func makeBook(_ record: BookRecord) throws -> Book {
         guard let status = BookStatus(rawValue: record.statusRawValue) else {
             throw BookRepositoryError.invalidStatus(record.statusRawValue)
         }
@@ -275,5 +215,12 @@ final class SwiftDataBookRepository: BookRepository, ReadingProgressStore {
             return lhsDate > rhsDate
         }
         return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+    }
+
+    func notifyCloudMutation(for record: BookRecord) {
+        guard Self.isSyncable(record) else {
+            return
+        }
+        cloudMutationHandler?()
     }
 }

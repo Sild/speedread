@@ -150,17 +150,17 @@ resumes from that segment instead of the first segment on the page.
 `BookRecord` stores stable ID, SHA-256 content hash, title, author display text,
 media type, layout, relative file/cover paths, byte count, import/open dates,
 progress, locator JSON, speed offset, status, per-field update timestamps, and
-an optional future deletion timestamp.
+an optional synchronization tombstone timestamp.
 
 `TagRecord` stores stable ID, canonical name, display name, creation/update
 timestamps, and optional deletion timestamp.
 
 `BookTagRecord` stores a stable membership ID, book ID, tag ID, created/update
 timestamps, and optional deletion timestamp. Explicit membership records make
-future distributed removal unambiguous.
+distributed removal unambiguous.
 
 Use repository validation instead of SwiftData unique constraints so the local
-schema can later participate in CloudKit-compatible synchronization.
+schema can participate in CloudKit-compatible synchronization.
 
 ### Interfaces
 
@@ -208,20 +208,48 @@ BookRepository / SwiftData -> Library
 - Import and deletion serialize file/database changes and compensate on partial
   failure.
 
-## Future iCloud Sync
+## Private iCloud Sync
 
-The MVP persists sync-ready IDs, timestamps, immutable hashes, and tombstones
-but contains no CloudKit entitlement or network code.
+`CloudKitSyncCoordinator` owns one `CKSyncEngine` for the private database and a
+custom `FastReaderLibrary` zone. `Book`, `BookAsset`, `Tag`, and `BookTag` wire
+records use deterministic names derived from the EPUB SHA-256 and canonical tag
+name. Local SwiftData UUIDs never cross the wire or define cross-device
+relationships.
 
-A future `CKSyncEngine` uses the private database:
+`CloudRecordStateRecord` is the durable outbox and stores each record's encoded
+CloudKit system fields, pending action, account identity, and mutation token.
+`CloudSyncStateRecord` stores the account-bound serialized engine state. Domain
+mutation and outbox writes share one SwiftData save. A successful send clears a
+pending action only when its captured mutation token still matches, so an edit
+made while a request is in flight cannot be lost.
 
-- immutable `BookAsset` records contain publication `CKAsset`s keyed by SHA-256;
-- book metadata fields merge independently by their update timestamp;
-- the newest position timestamp wins, including intentional backward movement;
-- tag membership and deletion use tombstones so removals survive offline edits;
-- downloaded assets move immediately from CloudKit staging into the local file
-  store;
-- account loss pauses sync without affecting local reading.
+Each successful local EPUB mutation increments an observable revision. A
+top-level SwiftUI task debounces that revision, wakes the engine, and is canceled
+with the application view lifecycle; the durable outbox remains authoritative if
+the task is interrupted or the account is unavailable. Stale engine changes
+without a matching outbox mutation are removed before batching.
+
+Book metadata/deletion, status, and position are three independently timestamped
+merge groups. Tags and memberships use last-write-wins tombstones. Equal
+timestamps use a deterministic value fingerprint, and `serverRecordChanged`
+retries adopt the server record's current system fields before saving the merged
+value.
+
+Immutable EPUB `CKAsset`s are copied immediately into app staging, rehashed,
+checked against the record identity and byte count, opened through Readium, and
+then atomically committed with a locally derived cover. Failed downloads remain
+durable and are fetched again by record ID because advancing a CloudKit change
+token must not lose the asset. Memberships received before their book or tag are
+also deferred durably and retried after later batches or relaunch. PDF originals,
+OCR caches, derived text, UI preferences, and `lastOpenedAt` never enter the
+outbox.
+
+The coordinator preflights the current iCloud account before constructing an
+automatic engine. Sign-out leaves the local library untouched. A different
+account clears only account-specific engine/system fields after explicit user
+confirmation, then reconstructs pending EPUB records from local state. The
+observable sync status drives library reloads and exposes local-only, syncing,
+download, retry, unavailable, and account-confirmation states.
 
 ## PDF Storage and Positioning
 

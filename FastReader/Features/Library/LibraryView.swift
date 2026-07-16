@@ -6,6 +6,7 @@ struct LibraryView: View {
 
     @State private var viewModel: LibraryViewModel
     @State private var importCoordinator: ImportCoordinator
+    @State private var cloudSyncStatus: CloudSyncStatusModel
     @State private var presentsImporter = false
     @State private var editingBook: Book?
     @State private var pendingDeletion: Book?
@@ -16,19 +17,24 @@ struct LibraryView: View {
     private let fileStore: any BookFileStore
     private let publicationService: any PublicationService
     private let progressStore: any ReadingProgressStore
+    private let cloudSyncCoordinator: CloudKitSyncCoordinator?
 
     init(
         repository: any BookRepository,
         progressStore: any ReadingProgressStore,
         fileStore: any BookFileStore,
         publicationService: any PublicationService,
-        importCoordinator: ImportCoordinator
+        importCoordinator: ImportCoordinator,
+        cloudSyncStatus: CloudSyncStatusModel,
+        cloudSyncCoordinator: CloudKitSyncCoordinator?
     ) {
         _viewModel = State(initialValue: LibraryViewModel(repository: repository))
         _importCoordinator = State(initialValue: importCoordinator)
+        _cloudSyncStatus = State(initialValue: cloudSyncStatus)
         self.fileStore = fileStore
         self.publicationService = publicationService
         self.progressStore = progressStore
+        self.cloudSyncCoordinator = cloudSyncCoordinator
     }
 
     var body: some View {
@@ -42,6 +48,14 @@ struct LibraryView: View {
         .navigationTitle("library.title")
         .searchable(text: searchText, prompt: "library.search.prompt")
         .toolbar {
+            if let cloudSyncCoordinator {
+                ToolbarItem(placement: .topBarLeading) {
+                    CloudSyncStatusButton(
+                        model: cloudSyncStatus,
+                        coordinator: cloudSyncCoordinator
+                    )
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     presentsImporter = true
@@ -118,6 +132,9 @@ struct LibraryView: View {
             await preparePendingShare()
         }
         .onChange(of: importCoordinator.revision) {
+            viewModel.load()
+        }
+        .onChange(of: cloudSyncStatus.libraryRevision) {
             viewModel.load()
         }
     }
@@ -423,7 +440,9 @@ private extension LibraryView {
             progressStore: repository,
             fileStore: fileStore,
             publicationService: ReadiumPublicationService(),
-            importCoordinator: coordinator
+            importCoordinator: coordinator,
+            cloudSyncStatus: CloudSyncStatusModel(),
+            cloudSyncCoordinator: nil
         )
     }
 }
