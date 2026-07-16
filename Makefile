@@ -9,6 +9,7 @@ ARCHIVE_PATH ?= .build/FastReader.xcarchive
 UI_TEST ?=
 
 .PHONY: bootstrap fixtures generate format format-check lint build test unit-test ui-test device-deploy project-check archive-check ci version-check
+.PHONY: cloudkit-check cloudkit-validate-development cloudkit-import-development cloudkit-verify-development cloudkit-verify-production
 
 bootstrap:
 	brew bundle
@@ -79,6 +80,21 @@ device-deploy:
 	DEVELOPMENT_TEAM="$(DEVELOPMENT_TEAM)" \
 		./Tools/device_deploy.sh
 
+cloudkit-check:
+	./Tools/cloudkit_setup.sh check
+
+cloudkit-validate-development:
+	./Tools/cloudkit_setup.sh validate-development
+
+cloudkit-import-development:
+	./Tools/cloudkit_setup.sh import-development
+
+cloudkit-verify-development:
+	./Tools/cloudkit_setup.sh verify-development
+
+cloudkit-verify-production:
+	./Tools/cloudkit_setup.sh verify-production
+
 project-check:
 	xcodegen generate
 	git diff --exit-code -- $(PROJECT)
@@ -93,4 +109,4 @@ archive-check:
 		-derivedDataPath $(DERIVED_DATA) \
 		CODE_SIGNING_ALLOWED=NO
 
-ci: version-check project-check format-check lint build test archive-check
+ci: version-check cloudkit-check project-check format-check lint build test archive-check

@@ -10,7 +10,7 @@ core_device_id=${CORE_DEVICE_ID:-}
 development_team=${DEVELOPMENT_TEAM:-}
 
 if [[ -z "$development_team" ]]; then
-    development_team=$(
+    team_candidates=("${(@f)$({
         /usr/bin/python3 - "$HOME/Library/Preferences/com.apple.dt.Xcode.plist" <<'PY'
 import plistlib
 import sys
@@ -22,14 +22,23 @@ except (FileNotFoundError, OSError, plistlib.InvalidFileException):
     sys.exit(0)
 
 teams_by_account = preferences.get("IDEProvisioningTeamByIdentifier", {})
+team_ids = set()
 for teams in teams_by_account.values():
     for team in teams:
         team_id = team.get("teamID")
         if team_id:
-            print(team_id)
-            sys.exit(0)
+            team_ids.add(team_id)
+
+for team_id in sorted(team_ids):
+    print(team_id)
 PY
-    )
+    })}")
+    if (( ${#team_candidates} == 1 )); then
+        development_team=$team_candidates[1]
+    elif (( ${#team_candidates} > 1 )); then
+        echo "Multiple Xcode development teams are available. Pass DEVELOPMENT_TEAM explicitly."
+        exit 2
+    fi
 fi
 
 if [[ -z "$development_team" ]]; then

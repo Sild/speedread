@@ -1,0 +1,41 @@
+DEFINE SCHEMA
+    RECORD TYPE Book (
+        contentHash STRING,
+        title STRING,
+        authorsDisplay STRING,
+        mediaType STRING,
+        layout STRING,
+        fileByteCount INT64,
+        importedAt TIMESTAMP,
+        metadataUpdatedAt TIMESTAMP,
+        deletedAt TIMESTAMP,
+        status STRING,
+        statusUpdatedAt TIMESTAMP,
+        locatorJSON STRING,
+        totalProgression DOUBLE,
+        speedElementID STRING,
+        speedTokenOffset INT64,
+        positionUpdatedAt TIMESTAMP
+    );
+
+    RECORD TYPE BookAsset (
+        contentHash STRING,
+        fileByteCount INT64,
+        asset ASSET
+    );
+
+    RECORD TYPE Tag (
+        canonicalName STRING,
+        displayName STRING,
+        createdAt TIMESTAMP,
+        updatedAt TIMESTAMP,
+        deletedAt TIMESTAMP
+    );
+
+    RECORD TYPE BookTag (
+        contentHash STRING,
+        canonicalName STRING,
+        createdAt TIMESTAMP,
+        updatedAt TIMESTAMP,
+        deletedAt TIMESTAMP
+    );
