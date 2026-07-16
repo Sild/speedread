@@ -20,9 +20,11 @@ external file URLs, app lifecycle, localization, and top-level navigation.
 
 ### Library
 
-Owns the adaptive grid/sidebar UI, search and AND filters, book details, tags,
-status editing, deletion, and import presentation. It depends on repository and
-import interfaces rather than SwiftData or Readium directly.
+Owns the shared single-stack navigation UI, adaptive grid, bottom safe-area
+search, AND filters, book details, tags, status editing, deletion, and import
+presentation. iPhone and iPad use the same navigation hierarchy; only the grid
+adapts its column count to available width. It depends on repository and import
+interfaces rather than SwiftData or Readium directly.
 
 `LibraryViewModel` loads one unfiltered repository snapshot and derives the
 visible books, status facets, and predictive tag facets from that snapshot.

@@ -25,9 +25,11 @@ under Readium preferences. Do not encode meaning by color alone.
 
 ## Library
 
-### iPhone
+### iPhone and iPad
 
-- Navigation stack with Library title, search, and import action.
+- One navigation stack with a large Library title and import action. A custom
+  bottom safe-area search field keeps search in the same place at every width;
+  it expands on iPhone and stays centered at a 560-point maximum width on iPad.
 - An adaptive 92...128-point cover grid produces three columns on typical
   compact iPhones, four on sufficiently wide phones, and 16-point horizontal
   by 24-point vertical gutters.
@@ -47,15 +49,10 @@ under Readium preferences. Do not encode meaning by color alone.
   Delete action. Sharing opens the native activity sheet with a title-based
   EPUB/PDF filename; preparation failures use a recoverable alert.
 
-### iPad
-
-- `NavigationSplitView` with an All Books sidebar and the complete filter
-  controls in the detail view.
-- Main adaptive compact cover grid with search and import toolbar actions. It
-  adds columns across the available detail width while retaining the same card
-  maximum and filter semantics as iPhone.
-- Tag editing uses a sheet; status editing, book sharing, and deletion are
-  available from the card context menu. Reading uses the detail area.
+On iPad, the grid adds columns across the available width while retaining the
+same card maximum and filter semantics as iPhone. There is no library sidebar;
+opening a book uses the full navigation canvas. Tag editing uses a sheet, while
+status editing, book sharing, and deletion remain in the card context menu.
 
 ### States
 

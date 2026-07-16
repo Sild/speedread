@@ -19,8 +19,15 @@ final class FastReaderUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["library.empty.title"].waitForExistence(timeout: 5))
         try app.performAccessibilityAudit { issue in
+            // XCTest predicts the empty SwiftUI TextField placeholder will clip,
+            // but the retained accessibility-size screenshots show the full text.
+            let isSearchFieldClippingFalsePositive = issue.auditType == .textClipped
+                && issue.element?.identifier == "library.search"
+            if isSearchFieldClippingFalsePositive {
+                return true
+            }
             // Xcode misreports only this iPad pill; measured contrast is 4.67:1.
-            app.frame.width >= 700
+            return app.frame.width >= 700
                 && issue.auditType == .contrast
                 && issue.element?.label == "All"
         }
@@ -43,6 +50,10 @@ final class FastReaderUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["library.empty.title"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["library.import"].isHittable)
+        let search = app.textFields["library.search"]
+        XCTAssertTrue(search.isHittable)
+        XCTAssertGreaterThan(search.frame.midY, app.frame.midY)
+        attachScreenshot(named: "Dark landscape accessibility library")
         try app.performAccessibilityAudit(for: [
             .elementDetection,
             .hitRegion,
@@ -87,6 +98,41 @@ final class FastReaderUITests: XCTestCase {
         applyFacetedFilters(in: app, grid: grid)
         assertSearchCounts(in: app, grid: grid)
         attachScreenshot(named: "Compact library and faceted filters")
+    }
+
+    @MainActor
+    func testLibraryNavigationAndBottomSearch() throws {
+        let app = launchFilterLibrary()
+        let grid = app.scrollViews["library.bookGrid"]
+        XCTAssertTrue(grid.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Library"].exists)
+        XCTAssertTrue(app.buttons["library.import"].exists)
+        XCTAssertTrue(app.staticTexts["Status"].exists)
+        XCTAssertTrue(app.staticTexts["Tags"].exists)
+        XCTAssertFalse(app.staticTexts["All Books"].exists)
+
+        let search = app.textFields["library.search"]
+        XCTAssertTrue(search.exists)
+        XCTAssertTrue(search.isHittable)
+        XCTAssertGreaterThan(search.frame.midY, app.frame.midY)
+
+        search.tap()
+        search.typeText("Delta")
+        XCTAssertEqual(grid.value as? String, "1")
+        let clearSearch = app.buttons["library.search.clear"]
+        XCTAssertTrue(clearSearch.waitForExistence(timeout: 3))
+        clearSearch.tap()
+        XCTAssertEqual(grid.value as? String, "4")
+        app.keyboards.buttons["Search"].tap()
+        XCTAssertFalse(app.keyboards.element.exists)
+
+        try app.performAccessibilityAudit(for: [
+            .elementDetection,
+            .hitRegion,
+            .sufficientElementDescription,
+            .trait
+        ])
+        attachScreenshot(named: "Unified bottom library search")
     }
 
     @MainActor
@@ -201,7 +247,15 @@ final class FastReaderUITests: XCTestCase {
         let gamma = button(containing: "Gamma Story", in: app)
         XCTAssertTrue(alpha.waitForExistence(timeout: 3))
         XCTAssertGreaterThan(beta.frame.minX, alpha.frame.minX)
-        XCTAssertLessThan(gamma.frame.minX, beta.frame.minX)
+        if app.frame.width < 700 {
+            XCTAssertLessThan(gamma.frame.minX, beta.frame.minX)
+        } else {
+            XCTAssertGreaterThan(gamma.frame.minX, beta.frame.minX)
+        }
+        let search = app.textFields["library.search"]
+        XCTAssertTrue(search.isHittable)
+        XCTAssertGreaterThan(search.frame.midY, app.frame.midY)
+        attachScreenshot(named: "Accessibility text bottom library search")
     }
 
     @MainActor
@@ -375,7 +429,7 @@ private extension FastReaderUITests {
     }
 
     func assertSearchCounts(in app: XCUIApplication, grid: XCUIElement) {
-        let search = app.searchFields.firstMatch
+        let search = app.textFields["library.search"]
         XCTAssertTrue(search.exists)
         search.tap()
         search.typeText("Delta")
@@ -398,48 +452,6 @@ private extension FastReaderUITests {
         return book
     }
 
-    func exerciseSpeedReader(in app: XCUIApplication) {
-        let regularSelectorFrame = selectorFrame(in: app)
-        app.buttons["reader.mode.speed"].tap()
-        XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
-        XCTAssertTrue(app.staticTexts["speed.wpm"].exists)
-        XCTAssertTrue(app.buttons["speed.wpm.decrease"].exists)
-        XCTAssertTrue(app.buttons["speed.wpm.increase"].exists)
-        let speedSelectorFrame = selectorFrame(in: app)
-        XCTAssertEqual(speedSelectorFrame.midX, regularSelectorFrame.midX, accuracy: 2)
-        assertSpeedButtonSizes(in: app)
-        app.buttons["speed.wpm.increase"].tap()
-        XCTAssertEqual(app.staticTexts["speed.wpm"].label, "325 WPM")
-        app.buttons["speed.wpm.decrease"].tap()
-        XCTAssertEqual(app.staticTexts["speed.wpm"].label, "300 WPM")
-        app.buttons["speed.settings"].tap()
-        let adaptivePauses = app.descendants(matching: .any)
-            .matching(identifier: "speed.adaptive")
-            .firstMatch
-        XCTAssertTrue(adaptivePauses.waitForExistence(timeout: 3))
-        adaptivePauses.tap()
-        exerciseAutoHide(in: app)
-        app.buttons["speed.previous"].tap()
-        app.buttons["speed.next"].tap()
-        app.buttons["speed.next"].tap()
-        app.buttons["speed.next"].tap()
-        attachScreenshot(named: "Single-rail speed reader context")
-        app.buttons["reader.mode.regular"].tap()
-        let navigator = app.otherElements["reader.navigator"]
-        XCTAssertTrue(navigator.waitForExistence(timeout: 8))
-        XCTAssertEqual(navigator.value as? String, "сохраняет")
-        let highlightedParagraph = app.staticTexts
-            .matching(NSPredicate(format: "label CONTAINS %@", "Скорочтение"))
-            .firstMatch
-        XCTAssertTrue(highlightedParagraph.waitForExistence(timeout: 8))
-        attachScreenshot(named: "Regular reader active speed word highlight")
-        app.buttons["reader.mode.speed"].tap()
-        XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
-        app.buttons["reader.mode.regular"].tap()
-        XCTAssertTrue(navigator.waitForExistence(timeout: 8))
-        XCTAssertEqual(navigator.value as? String, "сохраняет")
-    }
-
     func assertSpeedPositionAfterReopening(in app: XCUIApplication) {
         app.buttons["reader.back"].tap()
         let book = button(containing: "Путешествие Swift", in: app)
@@ -452,34 +464,6 @@ private extension FastReaderUITests {
         let navigator = app.otherElements["reader.navigator"]
         XCTAssertTrue(navigator.waitForExistence(timeout: 8))
         XCTAssertEqual(navigator.value as? String, "сохраняет")
-    }
-
-    func assertSpeedButtonSizes(in app: XCUIApplication) {
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.previous"].frame.width, 60)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.previous"].frame.height, 60)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.playPause"].frame.width, 68)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.playPause"].frame.height, 68)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.next"].frame.width, 60)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.next"].frame.height, 60)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.decrease"].frame.width, 52)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.decrease"].frame.height, 52)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.increase"].frame.width, 52)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.increase"].frame.height, 52)
-    }
-
-    func selectorFrame(in app: XCUIApplication) -> CGRect {
-        let selector = app.descendants(matching: .any)
-            .matching(identifier: "reader.mode.selector")
-            .firstMatch
-        XCTAssertTrue(selector.exists)
-        return selector.frame
-    }
-
-    func exerciseAutoHide(in app: XCUIApplication) {
-        app.buttons["speed.playPause"].tap()
-        XCTAssertFalse(app.buttons["speed.playPause"].exists)
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 3))
     }
 
     func assertRegularReaderControls(in app: XCUIApplication) {

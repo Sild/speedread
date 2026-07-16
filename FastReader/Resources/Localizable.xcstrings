@@ -271,6 +271,16 @@
         }
       }
     },
+    "library.search.clear" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Search"
+          }
+        }
+      }
+    },
     "library.search.prompt" : {
       "localizations" : {
         "en" : {
@@ -327,16 +337,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t Share Book"
-          }
-        }
-      }
-    },
-    "library.sidebar.all" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All Books"
           }
         }
       }

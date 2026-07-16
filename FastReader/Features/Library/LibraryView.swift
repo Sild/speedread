@@ -46,7 +46,10 @@ struct LibraryView: View {
         }
         .editorialCanvas()
         .navigationTitle("library.title")
-        .searchable(text: searchText, prompt: "library.search.prompt")
+        .navigationBarTitleDisplayMode(.large)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            LibrarySearchBar(text: searchText)
+        }
         .toolbar {
             if let cloudSyncCoordinator {
                 ToolbarItem(placement: .topBarLeading) {
@@ -137,6 +140,45 @@ struct LibraryView: View {
         .onChange(of: cloudSyncStatus.libraryRevision) {
             viewModel.load()
         }
+    }
+}
+
+private struct LibrarySearchBar: View {
+    @Binding var text: String
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: FastReaderSpacing.small) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(FastReaderPalette.secondaryText)
+                .accessibilityHidden(true)
+            TextField("library.search.prompt", text: $text)
+                .textFieldStyle(.plain)
+                .focused($isFocused)
+                .submitLabel(.search)
+                .onSubmit {
+                    isFocused = false
+                }
+                .accessibilityIdentifier("library.search")
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(FastReaderPalette.secondaryText)
+                .accessibilityLabel("library.search.clear")
+                .accessibilityIdentifier("library.search.clear")
+            }
+        }
+        .padding(.horizontal, FastReaderSpacing.medium)
+        .padding(.vertical, FastReaderSpacing.medium)
+        .background(.regularMaterial, in: Capsule())
+        .padding(.horizontal, FastReaderSpacing.standard)
+        .padding(.vertical, FastReaderSpacing.small)
+        .frame(maxWidth: 560)
+        .frame(maxWidth: .infinity)
     }
 }
 
