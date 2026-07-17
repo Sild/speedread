@@ -194,9 +194,7 @@ private extension SpeedReaderView {
                 )
                 .tint(FastReaderPalette.progress)
                 .accessibilityLabel("reader.progress")
-                Text("\(wordsPerMinute) WPM")
-                    .font(.caption.monospacedDigit().weight(.semibold))
-                    .accessibilityIdentifier("speed.wpm")
+                .accessibilityIdentifier("reader.progress")
             }
 
             playbackControls(session)
@@ -232,6 +230,13 @@ private extension SpeedReaderView {
         .frame(height: 52)
         .overlay {
             modeControl
+                .overlay(alignment: .bottom) {
+                    Text("\(wordsPerMinute) WPM")
+                        .font(.caption2.monospacedDigit().weight(.semibold))
+                        .dynamicTypeSize(.large)
+                        .offset(y: FastReaderSpacing.standard)
+                        .accessibilityIdentifier("speed.wpm")
+                }
         }
     }
 
@@ -253,7 +258,7 @@ private extension SpeedReaderView {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.title3.weight(.semibold))
-                .frame(width: 52, height: 52)
+                .frame(width: 60, height: 60)
                 .background(.thinMaterial, in: Circle())
         }
         .buttonStyle(.plain)

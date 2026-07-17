@@ -108,11 +108,14 @@ status editing, book sharing, and deletion remain in the card context menu.
   moves the focus grapheme.
 - The focus grapheme uses the semantic coral/amber accent plus weight, retaining
   meaning under color-vision differences.
-- Bottom controls: progression and WPM, 60-point previous/next circles, and a
-  68-point play/pause circle. A second row combines 52-point WPM decrement and
-  increment controls with the Regular/Speed selector centered independently of
-  them. Adaptive Pauses lives in the top-right settings menu. Controls auto-hide
-  only while playing and return on tap.
+- Bottom controls: a progression-only row, 60-point previous/next circles, and
+  a 68-point play/pause circle. Sixty-point WPM decrement/increment circles
+  flank the centered Regular/Speed selector on one row, while the compact WPM
+  value sits directly beneath the selector without moving its shared
+  regular/speed anchor. The WPM value remains caption-sized at accessibility
+  text sizes so this metadata cannot overlap the selector. Adaptive Pauses lives
+  in the top-right settings menu. Controls auto-hide only while playing and
+  return on tap.
 - Switching to regular reading adds a transient coral highlight to the active
   speed word. It communicates continuity without becoming a saved annotation.
 - No animated word travel. Token replacement is instantaneous or a subtle

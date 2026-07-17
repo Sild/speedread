@@ -2,6 +2,44 @@ import XCTest
 
 @MainActor
 extension FastReaderUITests {
+    func testSpeedControlsDarkLandscapeAccessibilityLayout() throws {
+        let device = XCUIDevice.shared
+        device.orientation = .landscapeLeft
+        defer { device.orientation = .portrait }
+
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-ui-testing",
+            "-ui-testing-dark",
+            "-ui-testing-reduce-motion",
+            "-ui-testing-accessibility-text"
+        ]
+        app.launch()
+
+        let fixtureURL = try XCTUnwrap(
+            Bundle(for: Self.self).url(forResource: "epub3-cyrillic", withExtension: "epub")
+        )
+        app.open(fixtureURL)
+        let book = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", "Путешествие Swift"))
+            .firstMatch
+        XCTAssertTrue(book.waitForExistence(timeout: 8))
+        book.tap()
+        XCTAssertTrue(app.buttons["reader.mode.speed"].waitForExistence(timeout: 8))
+        app.buttons["reader.mode.speed"].tap()
+        XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
+        assertWPMPlacement(in: app, selectorFrame: selectorFrame(in: app))
+        assertSpeedButtonSizes(in: app)
+        attachScreenshot(named: "Dark landscape accessibility speed controls")
+        try app.performAccessibilityAudit(for: [
+            .elementDetection,
+            .hitRegion,
+            .sufficientElementDescription,
+            .textClipped,
+            .trait
+        ])
+    }
+
     func exerciseSpeedReader(in app: XCUIApplication) {
         let regularSelectorFrame = selectorFrame(in: app)
         app.buttons["reader.mode.speed"].tap()
@@ -11,6 +49,8 @@ extension FastReaderUITests {
         XCTAssertTrue(app.buttons["speed.wpm.increase"].exists)
         let speedSelectorFrame = selectorFrame(in: app)
         XCTAssertEqual(speedSelectorFrame.midX, regularSelectorFrame.midX, accuracy: 2)
+        XCTAssertEqual(speedSelectorFrame.midY, regularSelectorFrame.midY, accuracy: 2)
+        assertWPMPlacement(in: app, selectorFrame: speedSelectorFrame)
         assertSpeedButtonSizes(in: app)
         app.buttons["speed.wpm.increase"].tap()
         XCTAssertEqual(app.staticTexts["speed.wpm"].label, "325 WPM")
@@ -45,16 +85,32 @@ extension FastReaderUITests {
     }
 
     func assertSpeedButtonSizes(in app: XCUIApplication) {
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.previous"].frame.width, 60)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.previous"].frame.height, 60)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.playPause"].frame.width, 68)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.playPause"].frame.height, 68)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.next"].frame.width, 60)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.next"].frame.height, 60)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.decrease"].frame.width, 52)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.decrease"].frame.height, 52)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.increase"].frame.width, 52)
-        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.increase"].frame.height, 52)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.previous"].frame.width.rounded(), 60)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.previous"].frame.height.rounded(), 60)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.playPause"].frame.width.rounded(), 68)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.playPause"].frame.height.rounded(), 68)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.next"].frame.width.rounded(), 60)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.next"].frame.height.rounded(), 60)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.decrease"].frame.width.rounded(), 60)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.decrease"].frame.height.rounded(), 60)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.increase"].frame.width.rounded(), 60)
+        XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.increase"].frame.height.rounded(), 60)
+    }
+
+    func assertWPMPlacement(in app: XCUIApplication, selectorFrame: CGRect) {
+        let progress = app.sliders["reader.progress"]
+        let wpm = app.staticTexts["speed.wpm"]
+        let decrease = app.buttons["speed.wpm.decrease"]
+        let increase = app.buttons["speed.wpm.increase"]
+
+        XCTAssertTrue(progress.exists)
+        XCTAssertGreaterThan(wpm.frame.minY, progress.frame.maxY)
+        XCTAssertGreaterThan(wpm.frame.minY, selectorFrame.maxY)
+        XCTAssertEqual(wpm.frame.midX, selectorFrame.midX, accuracy: 2)
+        XCTAssertLessThan(decrease.frame.maxX, wpm.frame.minX)
+        XCTAssertGreaterThan(increase.frame.minX, wpm.frame.maxX)
+        XCTAssertEqual(decrease.frame.midY, selectorFrame.midY, accuracy: 2)
+        XCTAssertEqual(increase.frame.midY, selectorFrame.midY, accuracy: 2)
     }
 
     func selectorFrame(in app: XCUIApplication) -> CGRect {
