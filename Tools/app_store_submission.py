@@ -7,9 +7,12 @@ import re
 import shutil
 import struct
 import sys
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.error import HTTPError, URLError
+from urllib.parse import urljoin, urlparse
+from urllib.request import Request, urlopen
 
 
 SCREENSHOT_PREFIX = re.compile(r"^AppStore-(\d{2})-([A-Za-z0-9-]+)_")
@@ -36,10 +39,28 @@ EXPECTED_SCREENSHOT_NAMES = {
         "03-speed-reader.png",
     },
 }
+LIVE_PAGES = {
+    "supportURL": "FastReader Support",
+    "privacyPolicyURL": "FastReader Privacy Policy",
+}
+MAX_LIVE_PAGE_BYTES = 1_000_000
 
 
 class SubmissionError(Exception):
     pass
+
+
+class PublicLinkParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: set[str] = set()
+
+    def handle_starttag(self, tag: str, attributes: list[tuple[str, Optional[str]]]) -> None:
+        if tag != "a":
+            return
+        for name, value in attributes:
+            if name == "href" and value:
+                self.links.add(value)
 
 
 def require(condition: bool, message: str) -> None:
@@ -179,6 +200,57 @@ def validate_metadata(root: Path) -> None:
     require((root / "FastReader/Resources/PrivacyInfo.xcprivacy").is_file(), "privacy manifest is missing")
 
 
+def validate_live_pages(root: Path, timeout: float, opener=None) -> None:
+    require(timeout > 0, "live-page timeout must be positive")
+    metadata = json.loads((root / "AppStore/metadata.json").read_text(encoding="utf-8"))
+    open_url = opener or urlopen
+    page_urls = {metadata.get(label) for label in LIVE_PAGES}
+    linked_urls: set[str] = set()
+    for label, expected_title in LIVE_PAGES.items():
+        url = metadata.get(label)
+        validate_https_url(label, url)
+        request = Request(url, headers={"User-Agent": "FastReader-AppStore-Preflight/1.0"})
+        try:
+            with open_url(request, timeout=timeout) as response:
+                final_url = response.geturl()
+                validate_https_url(f"{label} final URL", final_url)
+                payload = response.read(MAX_LIVE_PAGE_BYTES + 1)
+        except (HTTPError, URLError, TimeoutError) as error:
+            raise SubmissionError(f"{label} is unreachable: {error}") from error
+        require(len(payload) <= MAX_LIVE_PAGE_BYTES, f"{label} exceeds the live-page size limit")
+        try:
+            source = payload.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise SubmissionError(f"{label} is not UTF-8 HTML") from error
+        require(
+            f"<title>{expected_title}</title>" in source,
+            f"{label} does not contain the reviewed page title",
+        )
+        parser = PublicLinkParser()
+        parser.feed(source)
+        support_email_found = False
+        for link in parser.links:
+            parsed_link = urlparse(link)
+            if parsed_link.scheme == "mailto":
+                if label == "supportURL" and parsed_link.path.strip():
+                    support_email_found = True
+                continue
+            resolved = urljoin(final_url, link)
+            validate_https_url(f"{label} public link", resolved)
+            linked_urls.add(resolved)
+        if label == "supportURL":
+            require(support_email_found, "supportURL does not contain a public email contact")
+
+    for url in sorted(linked_urls - page_urls):
+        request = Request(url, headers={"User-Agent": "FastReader-AppStore-Preflight/1.0"})
+        try:
+            with open_url(request, timeout=timeout) as response:
+                validate_https_url("public link final URL", response.geturl())
+                response.read(1)
+        except (HTTPError, URLError, TimeoutError) as error:
+            raise SubmissionError(f"public link is unreachable: {url}: {error}") from error
+
+
 def validate_screenshot_set(
     path: Path,
     allowed_dimensions: set[tuple[int, int]],
@@ -224,6 +296,10 @@ def parse_arguments() -> argparse.Namespace:
     check.add_argument("--root", type=Path, required=True)
     check.add_argument("--screenshots-root", type=Path, required=True)
 
+    live_check = subparsers.add_parser("live-check", help="verify the published support and privacy pages")
+    live_check.add_argument("--root", type=Path, required=True)
+    live_check.add_argument("--timeout", type=float, default=10)
+
     return parser.parse_args()
 
 
@@ -234,6 +310,8 @@ def main() -> int:
             device_id(args.name)
         elif args.command == "export":
             export_screenshots(args)
+        elif args.command == "live-check":
+            validate_live_pages(args.root, args.timeout)
         else:
             check_submission(args)
     except (OSError, json.JSONDecodeError, plistlib.InvalidFileException, SubmissionError) as error:
@@ -241,6 +319,8 @@ def main() -> int:
         return 1
     if args.command == "check":
         print("FastReader App Store submission assets are locally complete")
+    elif args.command == "live-check":
+        print("FastReader public support and privacy pages are live")
     return 0
 
 

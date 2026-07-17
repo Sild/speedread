@@ -75,6 +75,94 @@ class AppStoreSubmissionTests(unittest.TestCase):
             with self.assertRaisesRegex(SUBJECT.SubmissionError, "unsupported dimensions"):
                 SUBJECT.validate_screenshot_set(root, {(1320, 2868)}, expected_names)
 
+    def test_accepts_reviewed_live_pages(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "AppStore").mkdir()
+            (root / "AppStore/metadata.json").write_text(
+                json.dumps(
+                    {
+                        "supportURL": "https://example.com/support.html",
+                        "privacyPolicyURL": "https://example.com/privacy.html",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            pages = {
+                "https://example.com/support.html": (
+                    b'<title>FastReader Support</title><a href="mailto:help@example.com">Email</a>'
+                ),
+                "https://example.com/privacy.html": b"<title>FastReader Privacy Policy</title>",
+            }
+
+            SUBJECT.validate_live_pages(root, 1, opener=FakeOpener(pages))
+
+    def test_rejects_live_support_page_without_email(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "AppStore").mkdir()
+            (root / "AppStore/metadata.json").write_text(
+                json.dumps(
+                    {
+                        "supportURL": "https://example.com/support.html",
+                        "privacyPolicyURL": "https://example.com/privacy.html",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            pages = {
+                "https://example.com/support.html": b"<title>FastReader Support</title>",
+                "https://example.com/privacy.html": b"<title>FastReader Privacy Policy</title>",
+            }
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "public email contact"):
+                SUBJECT.validate_live_pages(root, 1, opener=FakeOpener(pages))
+
+    def test_rejects_unreviewed_live_page(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "AppStore").mkdir()
+            (root / "AppStore/metadata.json").write_text(
+                json.dumps(
+                    {
+                        "supportURL": "https://example.com/support.html",
+                        "privacyPolicyURL": "https://example.com/privacy.html",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            pages = {
+                "https://example.com/support.html": b"<title>Repository Not Found</title>",
+                "https://example.com/privacy.html": b"<title>FastReader Privacy Policy</title>",
+            }
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "reviewed page title"):
+                SUBJECT.validate_live_pages(root, 1, opener=FakeOpener(pages))
+
+    def test_rejects_unreachable_public_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "AppStore").mkdir()
+            (root / "AppStore/metadata.json").write_text(
+                json.dumps(
+                    {
+                        "supportURL": "https://example.com/support.html",
+                        "privacyPolicyURL": "https://example.com/privacy.html",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            pages = {
+                "https://example.com/support.html": (
+                    b'<title>FastReader Support</title><a href="mailto:help@example.com">Email</a>'
+                    b'<a href="https://example.com/private">Help</a>'
+                ),
+                "https://example.com/privacy.html": b"<title>FastReader Privacy Policy</title>",
+            }
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "public link is unreachable"):
+                SUBJECT.validate_live_pages(root, 1, opener=FakeOpener(pages))
+
 
 class JsonInput:
     def __init__(self, value: object):
@@ -82,6 +170,36 @@ class JsonInput:
 
     def read(self, *_: object) -> str:
         return json.dumps(self.value)
+
+
+class FakeOpener:
+    def __init__(self, pages: dict[str, bytes]):
+        self.pages = pages
+
+    def __call__(self, request: object, **_: object) -> "FakeResponse":
+        try:
+            payload = self.pages[request.full_url]
+        except KeyError as error:
+            raise SUBJECT.URLError("not found") from error
+        return FakeResponse(request.full_url, payload)
+
+
+class FakeResponse:
+    def __init__(self, url: str, payload: bytes):
+        self.url = url
+        self.payload = payload
+
+    def __enter__(self) -> "FakeResponse":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        return None
+
+    def geturl(self) -> str:
+        return self.url
+
+    def read(self, _: int) -> bytes:
+        return self.payload
 
 
 class CapturedOutput:

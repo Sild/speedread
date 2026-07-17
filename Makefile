@@ -13,7 +13,7 @@ IPAD_SCREENSHOT_SIMULATOR ?= iPad Pro 13-inch (M5)
 
 .PHONY: bootstrap fixtures generate format format-check lint build test unit-test ui-test device-deploy project-check archive-check ci version-check
 .PHONY: cloudkit-check cloudkit-validate-development cloudkit-import-development cloudkit-verify-development cloudkit-verify-production
-.PHONY: app-store-check app-store-screenshots
+.PHONY: app-store-check app-store-live-check app-store-screenshots
 
 bootstrap:
 	brew bundle
@@ -105,6 +105,9 @@ app-store-check:
 	/usr/bin/python3 Tools/app_store_submission.py check \
 		--root . \
 		--screenshots-root $(APP_STORE_SCREENSHOTS)
+
+app-store-live-check:
+	/usr/bin/python3 Tools/app_store_submission.py live-check --root .
 
 app-store-screenshots:
 	IPHONE_SCREENSHOT_SIMULATOR='$(IPHONE_SCREENSHOT_SIMULATOR)' \
