@@ -235,7 +235,9 @@ extension SwiftDataBookRepository {
     }
 
     static func isSyncable(_ record: BookRecord) -> Bool {
-        URL(fileURLWithPath: record.fileRelativePath).pathExtension.lowercased() == "epub"
+        PublicationFormat(
+            pathExtension: URL(fileURLWithPath: record.fileRelativePath).pathExtension
+        ) != nil
     }
 
     private static func sortTagsForIdentity(_ lhs: TagRecord, _ rhs: TagRecord) -> Bool {

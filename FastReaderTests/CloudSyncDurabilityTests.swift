@@ -6,7 +6,7 @@ import Testing
 @Suite("Private iCloud sync durability")
 @MainActor
 struct CloudSyncDurabilityTests {
-    @Test("Saved EPUB mutations wake sync while PDF mutations stay local")
+    @Test("Saved EPUB and PDF mutations wake sync")
     func localMutationSignals() throws {
         let container = try PersistenceController.makeContainer(inMemory: true)
         let repository = SwiftDataBookRepository(modelContainer: container)
@@ -26,11 +26,11 @@ struct CloudSyncDurabilityTests {
         try repository.setStatus(.reading, for: epub.id, at: date(3))
         try repository.setStatus(.reading, for: pdf.id, at: date(4))
 
-        #expect(signals == 2)
+        #expect(signals == 4)
     }
 
-    @Test("Failed asset downloads remain durable and tombstoned books request deletion")
-    func remoteAssetDisposition() throws {
+    @Test("An asset received before its PDF book remains durable and resumes")
+    func deferredPDFAsset() throws {
         let container = try PersistenceController.makeContainer(inMemory: true)
         let repository = SwiftDataBookRepository(modelContainer: container)
         let pendingAsset = SyncedBookAsset(contentHash: "pending-asset", fileByteCount: 42)
@@ -41,12 +41,44 @@ struct CloudSyncDurabilityTests {
             accountRecordName: "account",
             at: date(1)
         )
-        #expect(pendingDisposition == .download)
+        #expect(pendingDisposition == .deferUntilBook)
         #expect(try repository.pendingRemoteAssetDownloads() == [pendingAsset.key])
 
-        try repository.markRemoteAssetDownloaded(pendingAsset.key, at: date(2))
-        #expect(try repository.pendingRemoteAssetDownloads().isEmpty)
+        _ = try repository.applyRemoteRecord(
+            .book(
+                syncedBook(
+                    contentHash: pendingAsset.contentHash,
+                    format: .pdf,
+                    title: "Remote PDF",
+                    status: .new,
+                    progression: 0,
+                    timestamps: SyncedBookTimestamps(
+                        metadata: date(2),
+                        status: date(2),
+                        position: date(2)
+                    )
+                )
+            ),
+            systemFieldsData: Data([2]),
+            accountRecordName: "account",
+            at: date(2)
+        )
+        let resumedDisposition = try repository.prepareRemoteAsset(
+            pendingAsset,
+            systemFieldsData: Data([3]),
+            accountRecordName: "account",
+            at: date(3)
+        )
+        #expect(resumedDisposition == .download(.pdf))
 
+        try repository.markRemoteAssetDownloaded(pendingAsset.key, at: date(4))
+        #expect(try repository.pendingRemoteAssetDownloads().isEmpty)
+    }
+
+    @Test("A tombstoned book requests remote asset deletion")
+    func tombstonedBookAsset() throws {
+        let container = try PersistenceController.makeContainer(inMemory: true)
+        let repository = SwiftDataBookRepository(modelContainer: container)
         let book = try repository.insert(
             importedPublication(hash: "deleted-asset", extension: "epub"),
             importedAt: date(3)
@@ -55,7 +87,7 @@ struct CloudSyncDurabilityTests {
         let deletedAsset = SyncedBookAsset(contentHash: book.contentHash, fileByteCount: 42)
         let deletedDisposition = try repository.prepareRemoteAsset(
             deletedAsset,
-            systemFieldsData: Data([2]),
+            systemFieldsData: Data([4]),
             accountRecordName: "account",
             at: date(5)
         )

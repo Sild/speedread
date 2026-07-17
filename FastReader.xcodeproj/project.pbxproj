@@ -56,6 +56,7 @@
 		7E2C4CCBC2122DC8BAB494F8 /* PublicationFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = A134A494AB69EFD7165D7B58 /* PublicationFormat.swift */; };
 		86FA7410201CDB06288640E0 /* RegularReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D686B49427270BE3AEC2470 /* RegularReaderView.swift */; };
 		8859FF3CB1541CB2B8DE0E15 /* ReadiumShared in Frameworks */ = {isa = PBXBuildFile; productRef = F0CDEC39331E45625AD09012 /* ReadiumShared */; };
+		8A5C6D491BA783618D4FC7D1 /* SwiftDataBookRepository+SyncBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72B79F7C92EB893CC32DE295 /* SwiftDataBookRepository+SyncBootstrap.swift */; };
 		8B171443B1DF1EC3FA250E60 /* AppBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7410FC2ED8BAA009422975BF /* AppBootstrap.swift */; };
 		91E0D945135AFACBF733FC62 /* RegularReaderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21E808DD7CD8C059745D6A1D /* RegularReaderViewModel.swift */; };
 		9272F0ED50C17786F6B3FEED /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA5B71C910ABA0867C317A90 /* LibraryView.swift */; };
@@ -70,6 +71,7 @@
 		A40A719FF586BF6424058F2E /* FastReaderSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDA0B26D5B0AEED83C0CC04 /* FastReaderSchema.swift */; };
 		A5599526CC14AE0AFE784E8F /* SpeedReaderUITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5EEEBAF61B6256E84CB0FB8 /* SpeedReaderUITestSupport.swift */; };
 		A6CD440BB1942CA0C9B73B8A /* malformed.epub in Resources */ = {isa = PBXBuildFile; fileRef = 65B0E961D4D47D53FB01EF58 /* malformed.epub */; };
+		AB1FD29810886F2A8ABDD27D /* CloudSyncPublicationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 742BC556E85C5A2EE2194707 /* CloudSyncPublicationTests.swift */; };
 		AD60380BA4FC6901935BC9ED /* pdf-malformed.pdf in Resources */ = {isa = PBXBuildFile; fileRef = C7501B8E39C4085077F8FB37 /* pdf-malformed.pdf */; };
 		AF84C347DE395729F7EDC400 /* pdf-two-column.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 7F7C6F86FDED8559F835ECA9 /* pdf-two-column.pdf */; };
 		B06406CB0010DA42882EEDC3 /* ReaderModeContinuityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF35F1D39F880A2D800752F6 /* ReaderModeContinuityTests.swift */; };
@@ -171,7 +173,9 @@
 		66F12EF510845B9018D26DAC /* FastReaderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FastReaderApp.swift; sourceTree = "<group>"; };
 		6A129727C858705EA5318BC2 /* long-chapter.epub */ = {isa = PBXFileReference; path = "long-chapter.epub"; sourceTree = "<group>"; };
 		6E71F652EE82FA96DED9B286 /* BookTagRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookTagRecord.swift; sourceTree = "<group>"; };
+		72B79F7C92EB893CC32DE295 /* SwiftDataBookRepository+SyncBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SwiftDataBookRepository+SyncBootstrap.swift"; sourceTree = "<group>"; };
 		7410FC2ED8BAA009422975BF /* AppBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBootstrap.swift; sourceTree = "<group>"; };
+		742BC556E85C5A2EE2194707 /* CloudSyncPublicationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncPublicationTests.swift; sourceTree = "<group>"; };
 		7448BFE21A4350DE3D01C33B /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		76B761BB49CAE8AC0879F391 /* InMemoryBookRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryBookRepository.swift; sourceTree = "<group>"; };
 		79C88C1E6188034382D6B6F7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -256,6 +260,7 @@
 				B90C23822A70B72697CE2133 /* SwiftDataBookRepository.swift */,
 				5A0E14D9519E01C63AC47E45 /* SwiftDataBookRepository+LibraryMutations.swift */,
 				6301012BE9B4B465E1FBD4D0 /* SwiftDataBookRepository+Sync.swift */,
+				72B79F7C92EB893CC32DE295 /* SwiftDataBookRepository+SyncBootstrap.swift */,
 			);
 			path = Repositories;
 			sourceTree = "<group>";
@@ -398,6 +403,7 @@
 			children = (
 				4298098606D5FDD2963F3E85 /* Fixtures */,
 				506764046846DD6DC4759F67 /* CloudSyncDurabilityTests.swift */,
+				742BC556E85C5A2EE2194707 /* CloudSyncPublicationTests.swift */,
 				4578AACBA9F99AB15E03FF3D /* CloudSyncTests.swift */,
 				EBC7CB61D9304877A6AB8907 /* DomainTests.swift */,
 				F2942198C5A18FC7A68E7396 /* ImportTests.swift */,
@@ -734,6 +740,7 @@
 				D35D58C3E4EE766CDBADD173 /* SpeedTokenizer.swift in Sources */,
 				F205596D37D7B3FEC3F08365 /* SwiftDataBookRepository+LibraryMutations.swift in Sources */,
 				76E38C468BAAAA217D6706E5 /* SwiftDataBookRepository+Sync.swift in Sources */,
+				8A5C6D491BA783618D4FC7D1 /* SwiftDataBookRepository+SyncBootstrap.swift in Sources */,
 				2297FF9B07443B1664E0172F /* SwiftDataBookRepository.swift in Sources */,
 				30EEB939CF5A908AF9D1E4B5 /* TagNormalizer.swift in Sources */,
 				CBCDE9CE8D48FA46B000CD4C /* TagRecord.swift in Sources */,
@@ -745,6 +752,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				49F94B2D4DF427D4A0E8591B /* CloudSyncDurabilityTests.swift in Sources */,
+				AB1FD29810886F2A8ABDD27D /* CloudSyncPublicationTests.swift in Sources */,
 				5C6CA7DB36E955E3A026E836 /* CloudSyncTests.swift in Sources */,
 				59FCEDA7EED903ABBA3E627F /* DomainTests.swift in Sources */,
 				2E031AE1FDCD6DAF1AA5DBC6 /* ImportTests.swift in Sources */,

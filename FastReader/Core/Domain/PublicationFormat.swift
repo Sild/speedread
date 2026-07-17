@@ -15,6 +15,17 @@ enum PublicationFormat: String, Codable, Sendable {
         }
     }
 
+    init?(mediaType: String) {
+        switch mediaType.lowercased() {
+        case PublicationFormat.epub.defaultMediaType:
+            self = .epub
+        case PublicationFormat.pdf.defaultMediaType:
+            self = .pdf
+        default:
+            return nil
+        }
+    }
+
     var fileExtension: String {
         rawValue
     }

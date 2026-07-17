@@ -1136,7 +1136,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FastReader is verifying and saving an EPUB from your private iCloud library."
+            "value" : "FastReader is verifying and saving a book from your private iCloud library."
           }
         }
       }
@@ -1156,7 +1156,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your library remains available on this device. Sign in to iCloud and retry to resume private EPUB sync."
+            "value" : "Your library remains available on this device. Sign in to iCloud and retry to resume private library sync."
           }
         }
       }
@@ -1196,7 +1196,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "FastReader is reconciling EPUB books, progress, statuses, and tags."
+            "value" : "FastReader is reconciling EPUB and PDF books, progress, statuses, and tags."
           }
         }
       }
@@ -1236,7 +1236,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your private EPUB library is up to date on this device. PDFs remain local only."
+            "value" : "Your private EPUB and PDF library is up to date on this device."
           }
         }
       }

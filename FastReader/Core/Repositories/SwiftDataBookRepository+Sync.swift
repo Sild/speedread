@@ -10,7 +10,8 @@ enum LibrarySyncStoreError: Error, Equatable, Sendable {
 }
 
 enum RemoteAssetDisposition: Equatable, Sendable {
-    case download
+    case deferUntilBook
+    case download(PublicationFormat)
     case delete
 }
 
@@ -90,7 +91,7 @@ extension SwiftDataBookRepository {
         let needsUpload: Bool
         switch remote {
         case let .book(book):
-            guard book.mediaType == PublicationFormat.epub.defaultMediaType else {
+            guard PublicationFormat(mediaType: book.mediaType) != nil else {
                 throw LibrarySyncStoreError.unsupportedMediaType(book.mediaType)
             }
             needsUpload = try applyRemoteBook(book)
@@ -137,7 +138,18 @@ extension SwiftDataBookRepository {
     ) throws -> RemoteAssetDisposition {
         let book = try context.fetch(FetchDescriptor<BookRecord>())
             .first { $0.contentHash == asset.contentHash }
-        let disposition: RemoteAssetDisposition = book?.deletedAt == nil ? .download : .delete
+        let disposition: RemoteAssetDisposition
+        if let book {
+            if book.deletedAt != nil {
+                disposition = .delete
+            } else if let format = PublicationFormat(mediaType: book.mediaType) {
+                disposition = .download(format)
+            } else {
+                throw LibrarySyncStoreError.unsupportedMediaType(book.mediaType)
+            }
+        } else {
+            disposition = .deferUntilBook
+        }
         try syncJournal.storeRemoteAssetState(
             for: asset.key,
             systemFieldsData: systemFieldsData,
@@ -197,18 +209,12 @@ extension SwiftDataBookRepository {
     }
 
     func reconcileAssetForDeletedBook(contentHash: String, at date: Date) throws -> RemoteBookCleanup? {
-        guard let record = try context.fetch(FetchDescriptor<BookRecord>())
-            .first(where: { $0.contentHash == contentHash }),
-            record.deletedAt != nil
-        else {
+        guard let cleanup = try cleanupForDeletedBook(contentHash: contentHash) else {
             return nil
         }
         try syncJournal.queue(.bookAsset(contentHash: contentHash), action: .delete, at: date)
         try context.save()
-        return RemoteBookCleanup(
-            contentHash: contentHash,
-            relativePaths: [record.fileRelativePath, record.coverRelativePath].compactMap(\.self)
-        )
+        return cleanup
     }
 
     func markRemoteRecordDeleted(_ key: LibrarySyncRecordKey) throws {
@@ -224,13 +230,20 @@ extension SwiftDataBookRepository {
         try context.save()
     }
 
-    func shouldRemoveDownloadedEPUB(contentHash: String) throws -> Bool {
-        try context.fetch(FetchDescriptor<BookRecord>())
-            .first(where: { $0.contentHash == contentHash })?
-            .deletedAt != nil
+    func cleanupForDeletedBook(contentHash: String) throws -> RemoteBookCleanup? {
+        guard let record = try context.fetch(FetchDescriptor<BookRecord>())
+            .first(where: { $0.contentHash == contentHash }),
+            record.deletedAt != nil
+        else {
+            return nil
+        }
+        return RemoteBookCleanup(
+            contentHash: contentHash,
+            relativePaths: [record.fileRelativePath, record.coverRelativePath].compactMap(\.self)
+        )
     }
 
-    func attachDownloadedEPUB(
+    func attachDownloadedPublication(
         contentHash: String,
         fileRelativePath: String,
         coverRelativePath: String?
@@ -245,53 +258,10 @@ extension SwiftDataBookRepository {
         try context.save()
     }
 
-    func resetCloudStateForAccount(_ accountRecordName: String?, at date: Date) throws {
-        try syncJournal.resetSystemFields(accountRecordName: accountRecordName, at: date)
-        let epubRecords = try context.fetch(FetchDescriptor<BookRecord>())
-            .filter { $0.fileRelativePath.lowercased().hasSuffix(".epub") }
-        for record in epubRecords {
-            try syncJournal.queue(.book(contentHash: record.contentHash), action: .save, at: date)
-            if record.deletedAt == nil {
-                try syncJournal.queue(.bookAsset(contentHash: record.contentHash), action: .save, at: date)
-            }
-        }
-        let books = try context.fetch(FetchDescriptor<BookRecord>())
-        let tags = try context.fetch(FetchDescriptor<TagRecord>())
-        let epubBookIDs = Set(
-            books.lazy
-                .filter { $0.fileRelativePath.lowercased().hasSuffix(".epub") }
-                .map(\.id)
-        )
-        let bookHashes = Dictionary(
-            books.map { ($0.id, $0.contentHash) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        let tagNames = Dictionary(
-            tags.map { ($0.id, $0.canonicalName) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        let memberships = try context.fetch(FetchDescriptor<BookTagRecord>())
-            .filter { epubBookIDs.contains($0.bookID) }
-        let syncedTagIDs = Set(memberships.map(\.tagID))
-        for tag in tags where syncedTagIDs.contains(tag.id) {
-            try syncJournal.queue(.tag(canonicalName: tag.canonicalName), action: .save, at: date)
-        }
-        for membership in memberships {
-            guard let hash = bookHashes[membership.bookID],
-                  let tagName = tagNames[membership.tagID]
-            else {
-                continue
-            }
-            try syncJournal.queue(
-                .bookTag(contentHash: hash, canonicalTagName: tagName),
-                action: .save,
-                at: date
-            )
-        }
-        try context.save()
-    }
-
     private func applyRemoteBook(_ remote: SyncedBook) throws -> Bool {
+        guard let format = PublicationFormat(mediaType: remote.mediaType) else {
+            throw LibrarySyncStoreError.unsupportedMediaType(remote.mediaType)
+        }
         let records = try context.fetch(FetchDescriptor<BookRecord>())
         if let record = records.first(where: { $0.contentHash == remote.contentHash }) {
             let local = try syncedBook(record)
@@ -309,7 +279,7 @@ extension SwiftDataBookRepository {
             authorsDisplay: remote.authorsDisplay,
             mediaType: remote.mediaType,
             layout: remote.layout,
-            fileRelativePath: "Books/\(remote.contentHash).epub",
+            fileRelativePath: "Books/\(remote.contentHash).\(format.fileExtension)",
             coverRelativePath: nil,
             fileByteCount: remote.fileByteCount,
             importedAt: remote.importedAt,

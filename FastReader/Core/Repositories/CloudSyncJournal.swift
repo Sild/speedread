@@ -126,11 +126,18 @@ final class CloudSyncJournal {
         }
         state.recordTypeRawValue = key.kind.rawValue
         state.systemFieldsData = systemFieldsData
-        state.pendingAction = disposition == .delete ? .delete : nil
-        state.mutationID = disposition == .delete ? UUID().uuidString : nil
+        switch disposition {
+        case .delete:
+            state.pendingAction = .delete
+            state.mutationID = UUID().uuidString
+            state.needsAssetDownload = false
+        case .deferUntilBook, .download:
+            state.pendingAction = nil
+            state.mutationID = nil
+            state.needsAssetDownload = true
+        }
         state.accountRecordName = accountRecordName
         state.deferredRecordData = nil
-        state.needsAssetDownload = disposition == .download
         state.updatedAt = date
     }
 

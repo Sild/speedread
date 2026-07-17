@@ -106,7 +106,7 @@ struct CloudSyncTests {
         #expect(decoded.assetURL == nil)
     }
 
-    @Test("Downloaded EPUB staging verifies exact bytes and removes a rejected asset")
+    @Test("Downloaded publication staging preserves format, verifies bytes, and removes rejects")
     func downloadedAssetVerification() async throws {
         let root = FileManager.default.temporaryDirectory
             .appending(path: "FastReaderCloudAssetTests-\(UUID().uuidString)")
@@ -118,19 +118,35 @@ struct CloudSyncTests {
         let hash = try await fileStore.contentHash(of: initialStage)
         await fileStore.discard(stagedFile: initialStage)
 
-        let downloaded = try await fileStore.stageEPUBAsset(
+        let downloaded = try await fileStore.stageDownloadedAsset(
             sourceURL: source,
-            expectedContentHash: hash
+            expectedContentHash: hash,
+            format: .epub
         )
         #expect(try Data(contentsOf: downloaded.url) == Data(contentsOf: source))
+        #expect(downloaded.url.pathExtension == "epub")
         await fileStore.discard(stagedFile: downloaded)
+
+        let pdfSource = try #require(bundle.url(forResource: "pdf-cyrillic", withExtension: "pdf"))
+        let pdfInitialStage = try await fileStore.stage(sourceURL: pdfSource)
+        let pdfHash = try await fileStore.contentHash(of: pdfInitialStage)
+        await fileStore.discard(stagedFile: pdfInitialStage)
+        let downloadedPDF = try await fileStore.stageDownloadedAsset(
+            sourceURL: pdfSource,
+            expectedContentHash: pdfHash,
+            format: .pdf
+        )
+        #expect(try Data(contentsOf: downloadedPDF.url) == Data(contentsOf: pdfSource))
+        #expect(downloadedPDF.url.pathExtension == "pdf")
+        await fileStore.discard(stagedFile: downloadedPDF)
 
         await #expect(
             throws: BookFileStoreError.contentHashMismatch(expected: "wrong", actual: hash)
         ) {
-            _ = try await fileStore.stageEPUBAsset(
+            _ = try await fileStore.stageDownloadedAsset(
                 sourceURL: source,
-                expectedContentHash: "wrong"
+                expectedContentHash: "wrong",
+                format: .epub
             )
         }
         let staging = root.appending(path: "Staging", directoryHint: .isDirectory)
@@ -141,56 +157,6 @@ struct CloudSyncTests {
 @Suite("Private iCloud sync persistence")
 @MainActor
 struct CloudSyncPersistenceTests {
-    @Test("EPUB mutations queue durable records while PDFs remain local")
-    func epubOnlyOutbox() throws {
-        let container = try PersistenceController.makeContainer(inMemory: true)
-        let repository = SwiftDataBookRepository(modelContainer: container)
-        let epub = try repository.insert(
-            importedPublication(hash: "epub-hash", extension: "epub"),
-            importedAt: date(1)
-        )
-        let afterEPUB = try repository.syncJournal.snapshots()
-
-        #expect(afterEPUB.count == 2)
-        #expect(afterEPUB.map(\.key.kind).sorted(by: { $0.rawValue < $1.rawValue }) == [.book, .bookAsset])
-        #expect(afterEPUB.allSatisfy { $0.pendingAction == .save })
-
-        let pdf = try repository.insert(
-            importedPublication(hash: "pdf-hash", extension: "pdf"),
-            importedAt: date(2)
-        )
-        try repository.setTags(["Local PDF"], for: pdf.id, at: date(3))
-
-        #expect(try repository.syncJournal.snapshots() == afterEPUB)
-
-        try repository.setStatus(.reading, for: epub.id, at: date(4))
-        let bookState = try #require(
-            repository.syncJournal.snapshots().first { $0.key.kind == .book }
-        )
-        #expect(bookState.pendingAction == .save)
-        #expect(bookState.mutationID != afterEPUB.first { $0.key.kind == .book }?.mutationID)
-    }
-
-    @Test("A queued EPUB asset resolves to its upload record")
-    func epubAssetRecordResolution() throws {
-        let container = try PersistenceController.makeContainer(inMemory: true)
-        let repository = SwiftDataBookRepository(modelContainer: container)
-        _ = try repository.insert(
-            importedPublication(hash: "asset-hash", extension: "epub"),
-            importedAt: date(1)
-        )
-
-        let record = try repository.syncRecord(
-            for: .bookAsset(contentHash: "asset-hash")
-        )
-
-        #expect(
-            record == .bookAsset(
-                SyncedBookAsset(contentHash: "asset-hash", fileByteCount: 42)
-            )
-        )
-    }
-
     @Test("Retained tags reuse their logical membership without a new mutation")
     func membershipIdentityIsStable() throws {
         let container = try PersistenceController.makeContainer(inMemory: true)
@@ -217,12 +183,12 @@ struct CloudSyncPersistenceTests {
         #expect(firstMembership == secondMembership)
     }
 
-    @Test("Deleting an EPUB tombstones metadata and deletes only its immutable asset")
-    func deletionJournal() throws {
+    @Test("Deleting a PDF tombstones metadata and deletes only its immutable asset")
+    func pdfDeletionJournal() throws {
         let container = try PersistenceController.makeContainer(inMemory: true)
         let repository = SwiftDataBookRepository(modelContainer: container)
         let book = try repository.insert(
-            importedPublication(hash: "delete-hash", extension: "epub"),
+            importedPublication(hash: "delete-hash", extension: "pdf"),
             importedAt: date(1)
         )
         try repository.setTags(["Archive"], for: book.id, at: date(2))
@@ -297,8 +263,8 @@ struct CloudSyncPersistenceTests {
         #expect(!afterCurrentSend.contains { $0.key == second.key })
     }
 
-    @Test("Account reset includes only tags connected to EPUB records")
-    func accountResetExcludesPDFTags() throws {
+    @Test("Account reset reconstructs EPUB and PDF records with their tags")
+    func accountResetIncludesSupportedPublications() throws {
         let container = try PersistenceController.makeContainer(inMemory: true)
         let repository = SwiftDataBookRepository(modelContainer: container)
         let epub = try repository.insert(
@@ -310,7 +276,7 @@ struct CloudSyncPersistenceTests {
             importedAt: date(2)
         )
         try repository.setTags(["Cloud Tag"], for: epub.id, at: date(3))
-        try repository.setTags(["Local PDF"], for: pdf.id, at: date(4))
+        try repository.setTags(["Cloud PDF"], for: pdf.id, at: date(4))
         for snapshot in try repository.pendingCloudChanges() {
             try repository.markCloudRecordSent(
                 snapshot.key,
@@ -332,8 +298,9 @@ struct CloudSyncPersistenceTests {
 
         let pendingKeys = try repository.pendingCloudChanges().map(\.key)
         #expect(pendingKeys.contains(.tag(canonicalName: "cloud tag")))
-        #expect(!pendingKeys.contains(.tag(canonicalName: "local pdf")))
-        #expect(!pendingKeys.contains(.book(contentHash: "account-pdf")))
+        #expect(pendingKeys.contains(.tag(canonicalName: "cloud pdf")))
+        #expect(pendingKeys.contains(.book(contentHash: "account-pdf")))
+        #expect(pendingKeys.contains(.bookAsset(contentHash: "account-pdf")))
         let orphanState = try #require(
             repository.syncJournal.snapshots().first { $0.key == orphanAsset.key }
         )
@@ -382,6 +349,7 @@ struct SyncedBookTimestamps {
 
 func syncedBook(
     contentHash: String = "shared-hash",
+    format: PublicationFormat = .epub,
     title: String,
     status: BookStatus,
     progression: Double,
@@ -391,8 +359,8 @@ func syncedBook(
         contentHash: contentHash,
         title: title,
         authorsDisplay: "Author",
-        mediaType: "application/epub+zip",
-        layout: .reflowable,
+        mediaType: format.defaultMediaType,
+        layout: format.layout,
         fileByteCount: 42,
         importedAt: date(1),
         metadataUpdatedAt: timestamps.metadata,

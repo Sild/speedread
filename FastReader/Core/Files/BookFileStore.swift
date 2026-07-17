@@ -31,7 +31,11 @@ protocol BookFileStore: Sendable {
         coverPNGData: Data?
     ) async throws -> StoredPublicationFiles
     func repair(stagedFile: StagedBookFile, relativePath: String) async throws
-    func stageEPUBAsset(sourceURL: URL, expectedContentHash: String) async throws -> StagedBookFile
+    func stageDownloadedAsset(
+        sourceURL: URL,
+        expectedContentHash: String,
+        format: PublicationFormat
+    ) async throws -> StagedBookFile
     func fileExists(relativePath: String) async -> Bool
     func fileURL(relativePath: String) async throws -> URL
     func data(relativePath: String) async throws -> Data
@@ -175,16 +179,20 @@ actor ApplicationSupportBookFileStore: BookFileStore {
         }
     }
 
-    func stageEPUBAsset(sourceURL: URL, expectedContentHash: String) throws -> StagedBookFile {
+    func stageDownloadedAsset(
+        sourceURL: URL,
+        expectedContentHash: String,
+        format: PublicationFormat
+    ) throws -> StagedBookFile {
         let stagedURL = stagingURL
             .appending(path: UUID().uuidString, directoryHint: .notDirectory)
-            .appendingPathExtension(PublicationFormat.epub.fileExtension)
+            .appendingPathExtension(format.fileExtension)
         do {
             try fileManager.copyItem(at: sourceURL, to: stagedURL)
             let values = try stagedURL.resourceValues(forKeys: [.fileSizeKey])
             let stagedFile = StagedBookFile(
                 url: stagedURL,
-                originalFilename: "\(expectedContentHash).epub",
+                originalFilename: "\(expectedContentHash).\(format.fileExtension)",
                 byteCount: Int64(values.fileSize ?? 0)
             )
             let actualContentHash = try contentHash(of: stagedFile)

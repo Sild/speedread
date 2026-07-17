@@ -214,8 +214,8 @@ BookRepository / SwiftData -> Library
 
 `CloudKitSyncCoordinator` owns one `CKSyncEngine` for the private database and a
 custom `FastReaderLibrary` zone. `Book`, `BookAsset`, `Tag`, and `BookTag` wire
-records use deterministic names derived from the EPUB SHA-256 and canonical tag
-name. Local SwiftData UUIDs never cross the wire or define cross-device
+records use deterministic names derived from the publication SHA-256 and
+canonical tag name. Local SwiftData UUIDs never cross the wire or define cross-device
 relationships.
 
 `CloudRecordStateRecord` is the durable outbox and stores each record's encoded
@@ -225,7 +225,7 @@ mutation and outbox writes share one SwiftData save. A successful send clears a
 pending action only when its captured mutation token still matches, so an edit
 made while a request is in flight cannot be lost.
 
-Each successful local EPUB mutation increments an observable revision. A
+Each successful local EPUB or PDF mutation increments an observable revision. A
 top-level SwiftUI task debounces that revision, wakes the engine, and is canceled
 with the application view lifecycle; the durable outbox remains authoritative if
 the task is interrupted or the account is unavailable. Stale engine changes
@@ -237,19 +237,23 @@ timestamps use a deterministic value fingerprint, and `serverRecordChanged`
 retries adopt the server record's current system fields before saving the merged
 value.
 
-Immutable EPUB `CKAsset`s are copied immediately into app staging, rehashed,
-checked against the record identity and byte count, opened through Readium, and
-then atomically committed with a locally derived cover. Failed downloads remain
-durable and are fetched again by record ID because advancing a CloudKit change
-token must not lose the asset. Memberships received before their book or tag are
-also deferred durably and retried after later batches or relaunch. PDF originals,
-OCR caches, derived text, UI preferences, and `lastOpenedAt` never enter the
+Immutable EPUB and PDF `CKAsset`s are copied immediately into format-correct app
+staging, rehashed, checked against the record identity, byte count, and expected
+publication format, opened through Readium, and then atomically committed with a
+locally derived cover. Book records are fetched before asset records; an asset
+received first remains durable until its book supplies the expected media type.
+Failed downloads are fetched again by record ID because advancing a CloudKit
+change token must not lose the asset. Memberships received before their book or
+tag are also deferred durably and retried after later batches or relaunch. OCR
+caches, derived PDF text, UI preferences, and `lastOpenedAt` never enter the
 outbox.
 
 The coordinator preflights the current iCloud account before constructing an
 automatic engine. Sign-out leaves the local library untouched. A different
 account clears only account-specific engine/system fields after explicit user
-confirmation, then reconstructs pending EPUB records from local state. The
+confirmation, then reconstructs pending EPUB and PDF records from local state.
+Startup also backfills supported publications created before their format was
+eligible for sync. The
 observable sync status drives library reloads and exposes local-only, syncing,
 download, retry, unavailable, and account-confirmation states.
 

@@ -142,7 +142,7 @@ def validate_metadata(root: Path) -> None:
     validate_https_url("supportURL", metadata["supportURL"])
     validate_https_url("privacyPolicyURL", metadata["privacyPolicyURL"])
 
-    require(metadata["bundleIdentifier"] == "com.sild.fastreader", "unexpected bundle identifier")
+    require(metadata["bundleIdentifier"] == "com.sild.fastreader.app", "unexpected bundle identifier")
     require(metadata["marketingVersion"] == "1.0.0", "unexpected marketing version")
     require(metadata["buildNumber"] == "1", "unexpected build number")
     require(metadata["primaryCategory"] == "Books", "primary category must remain Books")
@@ -151,7 +151,7 @@ def validate_metadata(root: Path) -> None:
     for expected in (
         "CURRENT_PROJECT_VERSION: 1",
         "MARKETING_VERSION: 1.0.0",
-        "PRODUCT_BUNDLE_IDENTIFIER: com.sild.fastreader",
+        "PRODUCT_BUNDLE_IDENTIFIER: com.sild.fastreader.app",
         "LSApplicationCategoryType: public.app-category.books",
         "ITSAppUsesNonExemptEncryption: false",
     ):

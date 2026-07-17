@@ -161,12 +161,8 @@ extension CloudKitSyncCoordinator {
         }
         if key.kind == .bookAsset {
             let hash = String(key.recordName.dropFirst("asset-".count))
-            if try await repository.shouldRemoveDownloadedEPUB(contentHash: hash) {
-                try await fileStore.remove(relativePaths: [
-                    "Books/\(hash).epub",
-                    "Covers/\(hash).png"
-                ])
-                try await fileStore.removeDerivedData(contentHash: hash)
+            if let cleanup = try await repository.cleanupForDeletedBook(contentHash: hash) {
+                try await removeDownloadedPublication(cleanup)
             }
         }
         try await repository.markRemoteRecordDeleted(key)
@@ -211,7 +207,7 @@ extension CloudKitSyncCoordinator {
                 contentHash: book.contentHash,
                 at: .now
             ) {
-                try await removeDownloadedEPUB(cleanup)
+                try await removeDownloadedPublication(cleanup)
             } else {
                 try await attachExistingAssetOrReportDownload(for: book)
             }
@@ -232,18 +228,24 @@ extension CloudKitSyncCoordinator {
             accountRecordName: accountRecordName,
             at: .now
         )
-        if disposition == .delete {
+        let format: PublicationFormat
+        switch disposition {
+        case .delete:
             if let cleanup = try await repository.reconcileAssetForDeletedBook(
                 contentHash: asset.contentHash,
                 at: .now
             ) {
-                try await removeDownloadedEPUB(cleanup)
+                try await removeDownloadedPublication(cleanup)
             }
             return
+        case .deferUntilBook:
+            return
+        case let .download(value):
+            format = value
         }
-        let stored = try await downloadAsset(asset, assetURL: decoded.assetURL)
+        let stored = try await downloadAsset(asset, assetURL: decoded.assetURL, format: format)
         do {
-            try await repository.attachDownloadedEPUB(
+            try await repository.attachDownloadedPublication(
                 contentHash: asset.contentHash,
                 fileRelativePath: stored.fileRelativePath,
                 coverRelativePath: stored.coverRelativePath
@@ -256,10 +258,13 @@ extension CloudKitSyncCoordinator {
     }
 
     private func attachExistingAssetOrReportDownload(for book: SyncedBook) async throws {
-        let filePath = "Books/\(book.contentHash).epub"
+        guard let format = PublicationFormat(mediaType: book.mediaType) else {
+            throw LibrarySyncStoreError.unsupportedMediaType(book.mediaType)
+        }
+        let filePath = "Books/\(book.contentHash).\(format.fileExtension)"
         if await fileStore.fileExists(relativePath: filePath) {
             let coverPath = "Covers/\(book.contentHash).png"
-            try await repository.attachDownloadedEPUB(
+            try await repository.attachDownloadedPublication(
                 contentHash: book.contentHash,
                 fileRelativePath: filePath,
                 coverRelativePath: fileStore.fileExists(relativePath: coverPath) ? coverPath : nil
@@ -271,15 +276,17 @@ extension CloudKitSyncCoordinator {
 
     private func downloadAsset(
         _ asset: SyncedBookAsset,
-        assetURL: URL?
+        assetURL: URL?,
+        format: PublicationFormat
     ) async throws -> StoredPublicationFiles {
         guard let assetURL else {
             throw CloudKitSyncCoordinatorError.missingAsset
         }
         await statusModel.update(.downloading(asset.contentHash))
-        let staged = try await fileStore.stageEPUBAsset(
+        let staged = try await fileStore.stageDownloadedAsset(
             sourceURL: assetURL,
-            expectedContentHash: asset.contentHash
+            expectedContentHash: asset.contentHash,
+            format: format
         )
         do {
             guard staged.byteCount == asset.fileByteCount else {
@@ -289,13 +296,13 @@ extension CloudKitSyncCoordinator {
                 )
             }
             let metadata = try await publicationService.inspectPublication(at: staged.url)
-            guard metadata.format == .epub else {
+            guard metadata.format == format else {
                 throw PublicationServiceError.unsupportedFormat
             }
             return try await fileStore.commit(
                 stagedFile: staged,
                 contentHash: asset.contentHash,
-                format: .epub,
+                format: format,
                 coverPNGData: metadata.coverPNGData
             )
         } catch {
@@ -315,7 +322,7 @@ extension CloudKitSyncCoordinator {
         try await fileStore.remove(relativePaths: paths)
     }
 
-    private func removeDownloadedEPUB(_ cleanup: RemoteBookCleanup) async throws {
+    private func removeDownloadedPublication(_ cleanup: RemoteBookCleanup) async throws {
         try await fileStore.remove(relativePaths: Array(Set(cleanup.relativePaths)))
         try await fileStore.removeDerivedData(contentHash: cleanup.contentHash)
     }
@@ -384,9 +391,9 @@ extension CloudKitSyncCoordinator {
 
     private static func fetchPriority(_ recordType: String) -> Int {
         switch LibrarySyncRecordKind(rawValue: recordType) {
-        case .bookAsset:
-            0
         case .book:
+            0
+        case .bookAsset:
             1
         case .tag:
             2

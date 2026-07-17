@@ -159,17 +159,18 @@ iOS/iPadOS 17 or newer.
 
 ## Private iCloud Sync
 
-- Sync DRM-free EPUB originals, metadata, status, reading position, tags, and
-  tag membership through the user's private iCloud database.
+- Sync DRM-free EPUB and PDF originals, metadata, status, reading position,
+  tags, and tag membership through the user's private iCloud database.
 - Keep the local SwiftData database and Application Support files authoritative;
   importing and reading continue offline while changes remain durably queued.
 - Resolve metadata, status, and position independently by their update times.
   A newer backward reading movement is intentional and must not be replaced by
   the numerically larger progression.
 - Preserve tag, membership, and book deletion tombstones across offline edits.
-- Verify every downloaded EPUB by SHA-256 and Readium inspection before making
-  it available. Derive covers locally rather than synchronizing them.
-- Keep PDFs, OCR text, derived caches, reading preferences, and `lastOpenedAt`
+- Verify every downloaded publication by SHA-256, byte count, expected format,
+  and Readium inspection before making it available. Derive covers locally
+  rather than synchronizing them.
+- Keep OCR text, derived PDF caches, reading preferences, and `lastOpenedAt`
   local to each device.
 - Sign-out pauses synchronization without deleting or blocking the local
   library. A different iCloud account requires explicit confirmation before
@@ -178,7 +179,8 @@ iOS/iPadOS 17 or newer.
 ## Privacy and Exclusions
 
 - No FastReader account, analytics, advertising, telemetry, or custom backend.
-- EPUB content and its library state may be stored in the user's private iCloud
-  database. PDF content, OCR, derived text, and preferences remain on-device.
+- EPUB and PDF content and their library state may be stored in the user's
+  private iCloud database. OCR, derived PDF text, and preferences remain
+  on-device.
 - Search inside publication text, bookmarks, highlights, notes, DRM, OPDS,
   text-to-speech, and store purchasing are outside the MVP.

@@ -56,6 +56,7 @@ actor CloudKitSyncCoordinator: CKSyncEngineDelegate {
 
             pendingAccountChange = nil
             accountRecordName = currentAccount
+            try await repository.queueUnsyncedLocalPublications(at: .now)
             try await configureEngine(stateData: storedState.engineStateData)
             try await repository.saveCloudSyncEngineState(
                 storedState.engineStateData,
@@ -233,6 +234,7 @@ actor CloudKitSyncCoordinator: CKSyncEngineDelegate {
         await retryPendingAssetDownloads()
         try await enqueueDurableChanges(in: engine)
         try await engine.fetchChanges()
+        await retryPendingAssetDownloads()
         try await enqueueDurableChanges(in: engine)
         try await engine.sendChanges()
         if try await repository.hasPendingCloudWork() == false {
