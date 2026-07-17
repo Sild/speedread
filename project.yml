@@ -120,6 +120,8 @@ targets:
       - FastReaderUITests
       - path: FastReaderTests/Fixtures/epub3-cyrillic.epub
         buildPhase: resources
+      - path: FastReaderTests/Fixtures/long-chapter.epub
+        buildPhase: resources
       - path: FastReaderTests/Fixtures/pdf-metadata-outline.pdf
         buildPhase: resources
       - path: FastReaderTests/Fixtures/pdf-image-only.pdf

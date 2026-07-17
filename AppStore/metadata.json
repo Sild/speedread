@@ -1,0 +1,17 @@
+{
+  "name": "FastReader",
+  "subtitle": "Read at your own pace",
+  "bundleIdentifier": "com.sild.fastreader",
+  "sku": "fastreader-ios",
+  "primaryLanguage": "en-US",
+  "primaryCategory": "Books",
+  "secondaryCategory": "Education",
+  "marketingVersion": "1.0.0",
+  "buildNumber": "1",
+  "keywords": "epub,pdf,speed reading,RSVP,offline,OCR,reading progress,private cloud",
+  "promotionalText": "Switch between a calm EPUB or PDF reader and contextual speed reading without losing your place.",
+  "description": "FastReader is a private, local-first EPUB and PDF reader for iPhone and iPad.\n\nImport DRM-free books from Files, organize them with status and tags, and read in a customizable regular view or contextual RSVP speed mode. Speed mode keeps nearby words visible, anchors the active word at its optimal recognition point, and supports adaptive pacing from 100 to 1000 WPM.\n\nFor supported PDFs, FastReader uses embedded text or on-device OCR without uploading the document. EPUB libraries can stay in sync across your devices through your private iCloud database; PDFs and OCR data remain local. Your library remains available for offline reading.",
+  "supportURL": "https://sild.github.io/fastreader/support.html",
+  "privacyPolicyURL": "https://sild.github.io/fastreader/privacy.html",
+  "reviewNotes": "FastReader requires no account. Tap Import or open a DRM-free EPUB or password-free PDF from Files. Long-press a library card to edit status or tags. Open a book and use the Speed control for contextual RSVP when extractable text is available. PDF text extraction uses embedded text or local Vision OCR. Protected EPUBs and password-locked PDFs are rejected. DRM-free EPUBs and their library state synchronize through the reviewer's private iCloud account; PDFs remain local. Rights-cleared EPUB and PDF fixtures can be attached for review if requested."
+}

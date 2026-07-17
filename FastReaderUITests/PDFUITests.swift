@@ -30,10 +30,7 @@ final class PDFUITests: XCTestCase {
         scrubRegularReaderProgress(in: app)
 
         let appearanceButton = app.buttons["reader.appearance"]
-        if !appearanceButton.waitForExistence(timeout: 1) {
-            app.otherElements["reader.navigator"].tap()
-        }
-        XCTAssertTrue(appearanceButton.waitForExistence(timeout: 3))
+        revealReaderChrome(in: app, visibleControl: appearanceButton)
         appearanceButton.tap()
         let scrollSwitch = app.switches["reader.appearance.scroll"]
         XCTAssertTrue(scrollSwitch.waitForExistence(timeout: 3))
@@ -88,6 +85,17 @@ final class PDFUITests: XCTestCase {
             object: progressSlider
         )
         wait(for: [returnedFromEnd], timeout: 8)
+    }
+
+    @MainActor
+    private func revealReaderChrome(in app: XCUIApplication, visibleControl: XCUIElement) {
+        let navigator = app.otherElements["reader.navigator"]
+        if visibleControl.exists {
+            navigator.tap()
+            XCTAssertTrue(visibleControl.waitForNonExistence(timeout: 3))
+        }
+        navigator.tap()
+        XCTAssertTrue(visibleControl.waitForExistence(timeout: 3))
     }
 }
 

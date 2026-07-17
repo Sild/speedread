@@ -76,6 +76,8 @@
 		B3F8658B615B26C0439AC9F2 /* ReadingProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 458B682BB2F005EF3D731AAC /* ReadingProgressStore.swift */; };
 		B7691DEB9324BF8FBAFA4CB7 /* LibraryFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C5935DD2B782EBBE17BAB3 /* LibraryFilter.swift */; };
 		B9EE24700E7E2CDBE20C03ED /* ReadiumStreamer in Frameworks */ = {isa = PBXBuildFile; productRef = BE37C33D390901B680CD74CE /* ReadiumStreamer */; };
+		BB7D49CBCB3067C1AC23CF09 /* long-chapter.epub in Resources */ = {isa = PBXBuildFile; fileRef = 6A129727C858705EA5318BC2 /* long-chapter.epub */; };
+		BDF88224242AB487EBE31218 /* AppStoreScreenshotUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A9D37FBAAA1699B67327164 /* AppStoreScreenshotUITests.swift */; };
 		C28F76CD274590B56FBC1E50 /* InMemoryBookRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B761BB49CAE8AC0879F391 /* InMemoryBookRepository.swift */; };
 		C4ED41F8D1C9197C8FDD32F8 /* PublicationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1DE94E1DFA84ADEC4EB9DF /* PublicationService.swift */; };
 		C6371C45362C248D0C22A466 /* pdf-long-scanned.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E1FB1C81F657460FCF626346 /* pdf-long-scanned.pdf */; };
@@ -141,6 +143,7 @@
 		2F9711BEA5DA4ADB63BA9031 /* FastReaderUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FastReaderUITests.swift; sourceTree = "<group>"; };
 		31FA96B133CBCD4AB460AED8 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		35F5FE51849755A2BAA936B0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3A9D37FBAAA1699B67327164 /* AppStoreScreenshotUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreScreenshotUITests.swift; sourceTree = "<group>"; };
 		3B4861D6CC1EB4D4F33EDA0D /* RegularReaderModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegularReaderModels.swift; sourceTree = "<group>"; };
 		3BEE3B27862CEF6527F3A5B3 /* SpeedReaderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedReaderViewModel.swift; sourceTree = "<group>"; };
 		3E1EF52C06327EC5A581A74D /* pdf-cyrillic.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "pdf-cyrillic.pdf"; sourceTree = "<group>"; };
@@ -438,6 +441,7 @@
 		DC819D6017C66BA24B1C04AE /* FastReaderUITests */ = {
 			isa = PBXGroup;
 			children = (
+				3A9D37FBAAA1699B67327164 /* AppStoreScreenshotUITests.swift */,
 				2F9711BEA5DA4ADB63BA9031 /* FastReaderUITests.swift */,
 				5C9EF113E94E005FB1E540AF /* PDFUITests.swift */,
 				C5EEEBAF61B6256E84CB0FB8 /* SpeedReaderUITestSupport.swift */,
@@ -653,6 +657,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2642527982E91221F306632A /* epub3-cyrillic.epub in Resources */,
+				BB7D49CBCB3067C1AC23CF09 /* long-chapter.epub in Resources */,
 				9B6CAE16E67F61897AA424BC /* pdf-image-only.pdf in Resources */,
 				231FE459FE20A5E8DE0C2F3B /* pdf-long-scanned.pdf in Resources */,
 				9B091BAD5445E0166A630924 /* pdf-metadata-outline.pdf in Resources */,
@@ -666,6 +671,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BDF88224242AB487EBE31218 /* AppStoreScreenshotUITests.swift in Sources */,
 				E514DB4910E1DF2DFF5016E2 /* FastReaderUITests.swift in Sources */,
 				99ACCE0DF1E136B1011DD5EB /* PDFUITests.swift in Sources */,
 				A5599526CC14AE0AFE784E8F /* SpeedReaderUITestSupport.swift in Sources */,
