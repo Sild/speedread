@@ -81,26 +81,28 @@ if [[ -z "$device_udid" || -z "$core_device_id" ]]; then
     exit 2
 fi
 
-mkdir -p "$root_dir/.build"
+device_derived_data="$derived_data/Devices/$device_udid"
+
+mkdir -p "$root_dir/.build" "$device_derived_data"
 build_log="$root_dir/.build/device-deploy.log"
-echo "Preparing the connected iPhone..."
+echo "Preparing the connected device..."
 if ! xcrun devicectl device info ddiServices \
     --device "$core_device_id" \
     --auto-mount-ddis \
     --quiet \
     >/dev/null 2>&1
 then
-    echo "The iPhone is locked or unavailable. Unlock it, keep it connected, and retry."
+    echo "The device is locked or unavailable. Unlock it, keep it connected, and retry."
     exit 2
 fi
 
-echo "Building FastReader for the connected iPhone..."
+echo "Building SpeedRead for the connected device..."
 if ! xcodebuild build \
-    -project "$root_dir/FastReader.xcodeproj" \
-    -scheme FastReader \
+    -project "$root_dir/SpeedRead.xcodeproj" \
+    -scheme SpeedRead \
     -configuration "$configuration" \
     -destination "id=$device_udid" \
-    -derivedDataPath "$derived_data" \
+    -derivedDataPath "$device_derived_data" \
     -disableAutomaticPackageResolution \
     -allowProvisioningUpdates \
     -allowProvisioningDeviceRegistration \
@@ -113,11 +115,11 @@ then
     exit 1
 fi
 
-app_path="$derived_data/Build/Products/$configuration-iphoneos/FastReader.app"
-echo "Installing FastReader..."
+app_path="$device_derived_data/Build/Products/$configuration-iphoneos/SpeedRead.app"
+echo "Installing SpeedRead..."
 xcrun devicectl device install app --device "$core_device_id" "$app_path"
-echo "Launching FastReader..."
+echo "Launching SpeedRead..."
 xcrun devicectl device process launch \
     --device "$core_device_id" \
     --terminate-existing \
-    com.sild.fastreader.app
+    com.sild.speedread.app

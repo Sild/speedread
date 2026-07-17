@@ -1,11 +1,11 @@
 SHELL := /bin/zsh
 
-PROJECT := FastReader.xcodeproj
-SCHEME := FastReader
+PROJECT := SpeedRead.xcodeproj
+SCHEME := SpeedRead
 CONFIGURATION ?= Debug
 DESTINATION ?= platform=iOS Simulator,name=iPhone 17 Pro
 DERIVED_DATA ?= .build/DerivedData
-ARCHIVE_PATH ?= .build/FastReader.xcarchive
+ARCHIVE_PATH ?= .build/SpeedRead.xcarchive
 UI_TEST ?=
 APP_STORE_SCREENSHOTS ?= AppStore/Screenshots
 IPHONE_SCREENSHOT_SIMULATOR ?= iPhone 17 Pro Max
@@ -27,10 +27,10 @@ generate:
 	xcodegen generate
 
 format:
-	swiftformat FastReader FastReaderTests FastReaderUITests
+	swiftformat SpeedRead SpeedReadTests SpeedReadUITests
 
 format-check:
-	swiftformat FastReader FastReaderTests FastReaderUITests --lint
+	swiftformat SpeedRead SpeedReadTests SpeedReadUITests --lint
 
 lint:
 	swiftlint lint --strict
@@ -51,7 +51,7 @@ test:
 	xcodebuild test \
 		-project $(PROJECT) \
 		-scheme $(SCHEME) \
-		-testPlan FastReaderFull \
+		-testPlan SpeedReadFull \
 		-destination '$(DESTINATION)' \
 		-derivedDataPath $(DERIVED_DATA) \
 		CODE_SIGNING_ALLOWED=NO
@@ -60,20 +60,20 @@ unit-test:
 	xcodebuild test \
 		-project $(PROJECT) \
 		-scheme $(SCHEME) \
-		-testPlan FastReaderUnit \
+		-testPlan SpeedReadUnit \
 		-destination '$(DESTINATION)' \
 		-derivedDataPath $(DERIVED_DATA) \
 		CODE_SIGNING_ALLOWED=NO
 
 ui-test:
-	@test -n "$(UI_TEST)" || { echo "Usage: make ui-test UI_TEST=<FastReaderUITests method>"; exit 2; }
+	@test -n "$(UI_TEST)" || { echo "Usage: make ui-test UI_TEST=<SpeedReadUITests method>"; exit 2; }
 	xcodebuild test \
 		-project $(PROJECT) \
 		-scheme $(SCHEME) \
-		-testPlan FastReaderFull \
+		-testPlan SpeedReadFull \
 		-destination '$(DESTINATION)' \
 		-derivedDataPath $(DERIVED_DATA) \
-		-only-testing:FastReaderUITests/FastReaderUITests/$(UI_TEST) \
+		-only-testing:SpeedReadUITests/SpeedReadUITests/$(UI_TEST) \
 		CODE_SIGNING_ALLOWED=NO
 
 device-deploy:

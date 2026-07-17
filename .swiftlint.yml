@@ -1,12 +1,12 @@
 strict: true
 
 included:
-  - FastReader
-  - FastReaderTests
-  - FastReaderUITests
+  - SpeedRead
+  - SpeedReadTests
+  - SpeedReadUITests
 
 excluded:
-  - FastReader.xcodeproj
+  - SpeedRead.xcodeproj
 
 opt_in_rules:
   - array_init
@@ -58,7 +58,7 @@ identifier_name:
 
 custom_rules:
   no_process_termination:
-    included: FastReader/.*\.swift
+    included: SpeedRead/.*\.swift
     name: Process-terminating control flow
     regex: '(fatalError|preconditionFailure|assertionFailure)\s*\('
     message: Production code must surface a recoverable typed error.

@@ -1,17 +1,17 @@
 {
-  "name": "FastReader",
+  "name": "SpeedRead: EPUB & PDF",
   "subtitle": "Read at your own pace",
-  "bundleIdentifier": "com.sild.fastreader.app",
-  "sku": "fastreader-ios",
+  "bundleIdentifier": "com.sild.speedread.app",
+  "sku": "speedread-ios",
   "primaryLanguage": "en-US",
   "primaryCategory": "Books",
   "secondaryCategory": "Education",
   "marketingVersion": "1.0.0",
   "buildNumber": "1",
   "keywords": "epub,pdf,speed reading,RSVP,offline,OCR,reading progress,private cloud",
-  "promotionalText": "Switch between a calm EPUB or PDF reader and contextual speed reading without losing your place.",
-  "description": "FastReader is a private, local-first EPUB and PDF reader for iPhone and iPad.\n\nImport DRM-free books from Files, organize them with status and tags, and read in a customizable regular view or contextual RSVP speed mode. Speed mode keeps nearby words visible, anchors the active word at its optimal recognition point, and supports adaptive pacing from 100 to 1000 WPM.\n\nOriginal DRM-free EPUB and PDF files and their library state can stay in sync across your devices through your private iCloud database. PDF text extraction and OCR run on-device; OCR results and derived PDF data remain local. Your library remains available for offline reading.",
-  "supportURL": "https://sild.github.io/fastreader/support.html",
-  "privacyPolicyURL": "https://sild.github.io/fastreader/privacy.html",
-  "reviewNotes": "FastReader requires no custom account. Tap Import or open a DRM-free EPUB or password-free PDF from Files. Long-press a library card to edit status or tags. Open a book and use the Speed control for contextual RSVP when extractable text is available. PDF text extraction uses embedded text or local Vision OCR. Protected EPUBs and password-locked PDFs are rejected. Original DRM-free EPUB and PDF files and their library state synchronize through the reviewer's private iCloud account; OCR results and derived PDF data remain local. Rights-cleared EPUB and PDF fixtures can be attached for review if requested."
+  "promotionalText": "Full local reading is free for up to 3 books. Pro adds unlimited books and private iCloud sync.",
+  "description": "SpeedRead is a private, local-first EPUB and PDF reader for iPhone and iPad.\n\nImport up to three DRM-free books for free and use the complete local experience: customizable regular reading, contextual RSVP Speed mode, on-device PDF OCR, progress, status, tags, search, and sharing. Your local library remains available offline.\n\nSpeedRead Pro adds an unlimited library and private iCloud synchronization through monthly, annual, or lifetime access. Existing books remain readable, shareable, and removable if Pro access expires.\n\nSpeed mode keeps nearby words visible, anchors the active word at its optimal recognition point, and supports adaptive pacing from 100 to 1000 WPM. PDF text extraction and OCR run on-device; OCR results and derived PDF data remain local.",
+  "supportURL": "https://sild.github.io/speedread/support.html",
+  "privacyPolicyURL": "https://sild.github.io/speedread/privacy.html",
+  "reviewNotes": "SpeedRead requires no custom account. Free access supports up to three imported books with all local features, including Speed mode and on-device PDF OCR. Tap the Library crown or reach the fourth unique import to open SpeedRead Pro. Monthly com.sild.speedread.pro.monthly, annual com.sild.speedread.pro.annual, and lifetime com.sild.speedread.pro.lifetime all unlock unlimited books and private iCloud sync. Restore Purchases is visible; active subscribers can open Manage Subscription. Tap Import or open a DRM-free EPUB or password-free PDF from Files. Protected EPUBs and password-locked PDFs are rejected. With Pro, original EPUB/PDF files and library state synchronize through the reviewer's private iCloud account; OCR results and derived PDF data remain local. Rights-cleared fixtures can be attached if requested."
 }

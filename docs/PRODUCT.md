@@ -2,7 +2,7 @@
 
 ## Goal
 
-FastReader helps people keep a private ebook library and move seamlessly
+SpeedRead helps people keep a private ebook library and move seamlessly
 between comfortable regular reading and visually focused speed reading.
 
 The MVP is TestFlight-ready, offline-first, and supports iPhone and iPad on
@@ -12,9 +12,9 @@ iOS/iPadOS 17 or newer.
 
 ### Import and open
 
-1. A person selects one or more EPUB or PDF files in FastReader, or chooses
-   FastReader from the Files/share-sheet Open With flow.
-2. FastReader copies and validates each file inside its sandbox.
+1. A person selects one or more EPUB or PDF files in SpeedRead, or chooses
+   SpeedRead from the Files/share-sheet Open With flow.
+2. SpeedRead copies and validates each file inside its sandbox.
 3. Successful external imports open immediately in regular reading mode.
 4. A byte-identical import opens the existing library item and preserves its
    progress, status, and tags.
@@ -159,10 +159,33 @@ iOS/iPadOS 17 or newer.
 - Offer retry when meaningful and direct the person back to the library when a
   publication cannot be opened.
 
+## Free Access and SpeedRead Pro
+
+- The app is free to download. Free access supports a local library of up to
+  three unique books with every local feature, including Regular and Speed
+  reading, on-device PDF OCR, organization, progress, preferences, and sharing.
+- SpeedRead Pro unlocks an unlimited library and private iCloud synchronization.
+  Monthly, annual, and lifetime products grant the same Pro entitlement.
+- The free library limit applies only when committing a new content hash.
+  Reimporting identical bytes may open the existing book or repair its missing
+  local file even when three books are present. Deleting a book frees one slot.
+- Reaching the free limit never locks existing books. They remain readable in
+  Regular or Speed mode and can still use OCR, be organized, shared, or deleted.
+- After a subscription expires or a transaction is refunded or revoked, existing
+  local books are never removed or locked. Sync pauses and only new unique
+  imports are blocked while at or above the free limit.
+- Purchase and Restore Purchases use StoreKit; the app grants Pro only from a
+  verified current entitlement and never caches an independent paid flag.
+  StoreKit's localized price and offline entitlement state remain authoritative.
+- Monthly and annual products share one subscription group and level. Lifetime
+  is a restorable non-consumable. Family Sharing, trials, introductory offers,
+  and manually assigned regional prices are not used at launch.
+
 ## Private iCloud Sync
 
-- Sync DRM-free EPUB and PDF originals, metadata, status, reading position,
-  tags, and tag membership through the user's private iCloud database.
+- SpeedRead Pro syncs DRM-free EPUB and PDF originals, metadata, status,
+  reading position, tags, and tag membership through the user's private iCloud
+  database.
 - Keep the local SwiftData database and Application Support files authoritative;
   importing and reading continue offline while changes remain durably queued.
 - Resolve metadata, status, and position independently by their update times.
@@ -180,7 +203,7 @@ iOS/iPadOS 17 or newer.
 
 ## Privacy and Exclusions
 
-- No FastReader account, analytics, advertising, telemetry, or custom backend.
+- No SpeedRead account, analytics, advertising, telemetry, or custom backend.
 - EPUB and PDF content and their library state may be stored in the user's
   private iCloud database. OCR, derived PDF text, and preferences remain
   on-device.

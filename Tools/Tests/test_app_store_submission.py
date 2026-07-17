@@ -24,6 +24,77 @@ def write_png_header(path: Path, width: int, height: int, color_type: int = 2) -
 
 
 class AppStoreSubmissionTests(unittest.TestCase):
+    def test_accepts_reviewed_monetization_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root)
+
+            SUBJECT.validate_monetization(root)
+
+    def test_rejects_monetization_product_identifier_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root, source_annual_id="com.example.wrong")
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "identifier drift"):
+                SUBJECT.validate_monetization(root)
+
+    def test_rejects_enabled_family_sharing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root, family_sharing=True)
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "Family Sharing"):
+                SUBJECT.validate_monetization(root)
+
+    def test_rejects_subscription_level_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root, subscription_level=2)
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "subscription level drift"):
+                SUBJECT.validate_monetization(root)
+
+    def test_rejects_missing_paywall_legal_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root, includes_terms_link=False)
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "paywall is missing required link"):
+                SUBJECT.validate_monetization(root)
+
+    def test_rejects_missing_paywall_support_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root, includes_support_link=False)
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "speedread/support.html"):
+                SUBJECT.validate_monetization(root)
+
+    def test_rejects_storekit_price_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root, storekit_annual_price="39.99")
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "StoreKit price drift"):
+                SUBJECT.validate_monetization(root)
+
+    def test_rejects_storekit_family_sharing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root, storekit_family_sharing=True)
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "StoreKit Family Sharing"):
+                SUBJECT.validate_monetization(root)
+
+    def test_rejects_missing_storekit_scheme_wiring(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root, wires_storekit_scheme=False)
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "Run scheme"):
+                SUBJECT.validate_monetization(root)
+
     def test_normalizes_only_reviewed_screenshot_attachments(self) -> None:
         self.assertEqual(
             SUBJECT.normalized_attachment_name("AppStore-02-Regular-Reader_0_ID.png"),
@@ -90,9 +161,9 @@ class AppStoreSubmissionTests(unittest.TestCase):
             )
             pages = {
                 "https://example.com/support.html": (
-                    b'<title>FastReader Support</title><a href="mailto:help@example.com">Email</a>'
+                    b'<title>SpeedRead Support</title><a href="mailto:help@example.com">Email</a>'
                 ),
-                "https://example.com/privacy.html": b"<title>FastReader Privacy Policy</title>",
+                "https://example.com/privacy.html": b"<title>SpeedRead Privacy Policy</title>",
             }
 
             SUBJECT.validate_live_pages(root, 1, opener=FakeOpener(pages))
@@ -111,8 +182,8 @@ class AppStoreSubmissionTests(unittest.TestCase):
                 encoding="utf-8",
             )
             pages = {
-                "https://example.com/support.html": b"<title>FastReader Support</title>",
-                "https://example.com/privacy.html": b"<title>FastReader Privacy Policy</title>",
+                "https://example.com/support.html": b"<title>SpeedRead Support</title>",
+                "https://example.com/privacy.html": b"<title>SpeedRead Privacy Policy</title>",
             }
 
             with self.assertRaisesRegex(SUBJECT.SubmissionError, "public email contact"):
@@ -133,7 +204,7 @@ class AppStoreSubmissionTests(unittest.TestCase):
             )
             pages = {
                 "https://example.com/support.html": b"<title>Repository Not Found</title>",
-                "https://example.com/privacy.html": b"<title>FastReader Privacy Policy</title>",
+                "https://example.com/privacy.html": b"<title>SpeedRead Privacy Policy</title>",
             }
 
             with self.assertRaisesRegex(SUBJECT.SubmissionError, "reviewed page title"):
@@ -154,14 +225,216 @@ class AppStoreSubmissionTests(unittest.TestCase):
             )
             pages = {
                 "https://example.com/support.html": (
-                    b'<title>FastReader Support</title><a href="mailto:help@example.com">Email</a>'
+                    b'<title>SpeedRead Support</title><a href="mailto:help@example.com">Email</a>'
                     b'<a href="https://example.com/private">Help</a>'
                 ),
-                "https://example.com/privacy.html": b"<title>FastReader Privacy Policy</title>",
+                "https://example.com/privacy.html": b"<title>SpeedRead Privacy Policy</title>",
             }
 
             with self.assertRaisesRegex(SUBJECT.SubmissionError, "public link is unreachable"):
                 SUBJECT.validate_live_pages(root, 1, opener=FakeOpener(pages))
+
+    def write_monetization_contract(
+        self,
+        root: Path,
+        *,
+        source_annual_id: str = "com.sild.speedread.pro.annual",
+        family_sharing: bool = False,
+        subscription_level: int = 1,
+        includes_support_link: bool = True,
+        includes_terms_link: bool = True,
+        storekit_annual_price: str = "29.99",
+        storekit_family_sharing: bool = False,
+        wires_storekit_scheme: bool = True,
+    ) -> None:
+        (root / "AppStore").mkdir()
+        source = root / "SpeedRead/Core/Monetization"
+        source.mkdir(parents=True)
+        (root / "AppStore/monetization.json").write_text(
+            json.dumps(
+                {
+                    "automaticPriceLocalization": True,
+                    "subscriptionGroup": {
+                        "referenceName": "SpeedRead Pro",
+                        "localizations": {"en-US": {"displayName": "SpeedRead Pro"}},
+                    },
+                    "products": [
+                        {
+                            "productIdentifier": "com.sild.speedread.pro.monthly",
+                            "type": "auto-renewable-subscription",
+                            "referenceName": "SpeedRead Pro Monthly",
+                            "subscriptionDuration": "P1M",
+                            "subscriptionLevel": subscription_level,
+                            "familySharing": family_sharing,
+                            "introductoryOffer": False,
+                            "plannedLaunchPriceUSD": "4.99",
+                            "localizations": {
+                                "en-US": {
+                                    "displayName": "SpeedRead Pro Monthly",
+                                    "description": "Unlimited books and private iCloud sync.",
+                                }
+                            },
+                        },
+                        {
+                            "productIdentifier": "com.sild.speedread.pro.annual",
+                            "type": "auto-renewable-subscription",
+                            "referenceName": "SpeedRead Pro Annual",
+                            "subscriptionDuration": "P1Y",
+                            "subscriptionLevel": subscription_level,
+                            "familySharing": family_sharing,
+                            "introductoryOffer": False,
+                            "plannedLaunchPriceUSD": "29.99",
+                            "localizations": {
+                                "en-US": {
+                                    "displayName": "SpeedRead Pro Annual",
+                                    "description": "Unlimited books and private iCloud sync.",
+                                }
+                            },
+                        },
+                        {
+                            "productIdentifier": "com.sild.speedread.pro.lifetime",
+                            "type": "non-consumable",
+                            "referenceName": "SpeedRead Pro Lifetime",
+                            "familySharing": family_sharing,
+                            "plannedLaunchPriceUSD": "79.99",
+                            "localizations": {
+                                "en-US": {
+                                    "displayName": "SpeedRead Pro Lifetime",
+                                    "description": "Unlimited books and private iCloud sync.",
+                                }
+                            },
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (source / "PurchaseManager.swift").write_text(
+            'case monthly = "com.sild.speedread.pro.monthly"\n'
+            f'case annual = "{source_annual_id}"\n'
+            'case lifetime = "com.sild.speedread.pro.lifetime"\n',
+            encoding="utf-8",
+        )
+        paywall = root / "SpeedRead/Features/Monetization"
+        paywall.mkdir(parents=True)
+        paywall_source = ""
+        if includes_support_link:
+            paywall_source += "https://sild.github.io/speedread/support.html\n"
+        paywall_source += "https://sild.github.io/speedread/privacy.html\n"
+        if includes_terms_link:
+            paywall_source += "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/\n"
+        (paywall / "ProPaywallView.swift").write_text(paywall_source, encoding="utf-8")
+        (root / "Config").mkdir()
+        storekit_products = [
+            self.storekit_subscription(
+                "com.sild.speedread.pro.monthly",
+                "SpeedRead Pro Monthly",
+                "P1M",
+                "4.99",
+                "monthly",
+                storekit_family_sharing,
+            ),
+            self.storekit_subscription(
+                "com.sild.speedread.pro.annual",
+                "SpeedRead Pro Annual",
+                "P1Y",
+                storekit_annual_price,
+                "annual",
+                storekit_family_sharing,
+            ),
+        ]
+        (root / "Config/SpeedRead.storekit").write_text(
+            json.dumps(
+                {
+                    "identifier": "configuration",
+                    "nonRenewingSubscriptions": [],
+                    "products": [
+                        {
+                            "displayPrice": "79.99",
+                            "familyShareable": storekit_family_sharing,
+                            "internalID": "lifetime",
+                            "localizations": [
+                                {
+                                    "description": "Unlimited books and private iCloud sync.",
+                                    "displayName": "SpeedRead Pro Lifetime",
+                                    "locale": "en_US",
+                                }
+                            ],
+                            "productID": "com.sild.speedread.pro.lifetime",
+                            "referenceName": "SpeedRead Pro Lifetime",
+                            "type": "NonConsumable",
+                        }
+                    ],
+                    "settings": {
+                        "_failTransactionsEnabled": False,
+                        "_locale": "en_US",
+                        "_storefront": "USA",
+                        "_storeKitErrors": [],
+                    },
+                    "subscriptionGroups": [
+                        {
+                            "id": "group",
+                            "localizations": [
+                                {
+                                    "description": "Unlimited books and private iCloud sync.",
+                                    "displayName": "SpeedRead Pro",
+                                    "locale": "en_US",
+                                }
+                            ],
+                            "name": "SpeedRead Pro",
+                            "subscriptions": storekit_products,
+                        }
+                    ],
+                    "version": {"major": 6, "minor": 3},
+                }
+            ),
+            encoding="utf-8",
+        )
+        project = "fileGroups:\n  - Config/SpeedRead.storekit\n"
+        if wires_storekit_scheme:
+            project += "storeKitConfiguration: Config/SpeedRead.storekit\n"
+        (root / "project.yml").write_text(project, encoding="utf-8")
+
+    def storekit_subscription(
+        self,
+        product_id: str,
+        reference_name: str,
+        duration: str,
+        price: str,
+        internal_id: str,
+        family_sharing: bool,
+    ) -> dict[str, object]:
+        return {
+            "adHocOffers": [],
+            "billingPlans": [
+                {
+                    "billingPlanType": "BILLED_UPFRONT",
+                    "commitmentDisplayPrice": price,
+                    "displayPrice": price,
+                    "internalID": f"{internal_id}-billing",
+                    "isEnabled": True,
+                }
+            ],
+            "codeOffers": [],
+            "displayPrice": price,
+            "familyShareable": family_sharing,
+            "groupNumber": 1,
+            "internalID": internal_id,
+            "introductoryOffers": [],
+            "localizations": [
+                {
+                    "description": "Unlimited books and private iCloud sync.",
+                    "displayName": reference_name,
+                    "locale": "en_US",
+                }
+            ],
+            "productID": product_id,
+            "recurringSubscriptionPeriod": duration,
+            "referenceName": reference_name,
+            "subscriptionGroupID": "group",
+            "type": "RecurringSubscription",
+            "winbackOffers": [],
+        }
 
 
 class JsonInput:

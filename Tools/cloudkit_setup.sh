@@ -3,8 +3,8 @@
 set -euo pipefail
 
 root_dir=${0:A:h:h}
-schema="$root_dir/CloudKit/FastReader.ckdb"
-container_identifier=iCloud.com.sild.fastreader
+schema="$root_dir/CloudKit/SpeedRead.ckdb"
+container_identifier=iCloud.com.sild.speedread
 development_team=${DEVELOPMENT_TEAM:-}
 action=${1:-check}
 temporary_schema=
@@ -22,9 +22,9 @@ verify_local() {
     }
     /usr/bin/python3 "$root_dir/Tools/verify_cloudkit_schema.py" local \
         --schema "$schema" \
-        --record-source "$root_dir/FastReader/Core/Sync/LibrarySyncRecord.swift" \
-        --codec-source "$root_dir/FastReader/Core/Sync/CloudKitRecordCodec.swift" \
-        --entitlements "$root_dir/FastReader/Resources/FastReader.entitlements" \
+        --record-source "$root_dir/SpeedRead/Core/Sync/LibrarySyncRecord.swift" \
+        --codec-source "$root_dir/SpeedRead/Core/Sync/CloudKitRecordCodec.swift" \
+        --entitlements "$root_dir/SpeedRead/Resources/SpeedRead.entitlements" \
         --project "$root_dir/project.yml" \
         --debug-config "$root_dir/Config/Debug.xcconfig" \
         --release-config "$root_dir/Config/Release.xcconfig"
@@ -59,7 +59,7 @@ validate_development() {
 
 verify_deployed() {
     local environment=$1
-    temporary_schema=$(mktemp -t fastreader-cloudkit-schema)
+    temporary_schema=$(mktemp -t speedread-cloudkit-schema)
     xcrun cktool export-schema \
         --team-id "$development_team" \
         --container-id "$container_identifier" \
@@ -76,7 +76,7 @@ verify_local
 
 case "$action" in
     check)
-        print -- "FastReader CloudKit configuration is ready for Apple activation."
+        print -- "SpeedRead CloudKit configuration is ready for Apple activation."
         ;;
     validate-development)
         require_remote_access

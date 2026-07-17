@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="book-id">urn:uuid:fastreader-fixture</dc:identifier>
+    <dc:identifier id="book-id">urn:uuid:speedread-fixture</dc:identifier>
     <dc:title>Путешествие Swift</dc:title>
     <dc:creator>Иван Петров</dc:creator>
     <dc:language>ru</dc:language>

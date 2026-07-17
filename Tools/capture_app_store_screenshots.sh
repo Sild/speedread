@@ -49,14 +49,14 @@ capture_device() {
         --batteryLevel 100
 
     xcodebuild test -quiet \
-        -project "$root_dir/FastReader.xcodeproj" \
-        -scheme FastReader \
-        -testPlan FastReaderFull \
+        -project "$root_dir/SpeedRead.xcodeproj" \
+        -scheme SpeedRead \
+        -testPlan SpeedReadFull \
         -destination "platform=iOS Simulator,id=$device_id" \
         -derivedDataPath "$derived_data" \
         -resultBundlePath "$result_bundle" \
         -parallel-testing-enabled NO \
-        -only-testing:FastReaderUITests/AppStoreScreenshotUITests/testAppStoreScreenshots \
+        -only-testing:SpeedReadUITests/AppStoreScreenshotUITests/testAppStoreScreenshots \
         CODE_SIGNING_ALLOWED=NO
 
     mkdir -p "$attachments"

@@ -40,8 +40,8 @@ EXPECTED_SCREENSHOT_NAMES = {
     },
 }
 LIVE_PAGES = {
-    "supportURL": "FastReader Support",
-    "privacyPolicyURL": "FastReader Privacy Policy",
+    "supportURL": "SpeedRead Support",
+    "privacyPolicyURL": "SpeedRead Privacy Policy",
 }
 MAX_LIVE_PAGE_BYTES = 1_000_000
 
@@ -131,7 +131,227 @@ def validate_https_url(label: str, value: object) -> None:
     require(parsed.scheme == "https" and bool(parsed.netloc), f"{label} must be an HTTPS URL")
 
 
+def validate_monetization(root: Path) -> None:
+    product_path = root / "AppStore/monetization.json"
+    contract = json.loads(product_path.read_text(encoding="utf-8"))
+    require(
+        set(contract) == {"automaticPriceLocalization", "subscriptionGroup", "products"},
+        "monetization fields do not match the reviewed schema",
+    )
+    require(contract["automaticPriceLocalization"] is True, "prices must use automatic localization")
+
+    group = contract["subscriptionGroup"]
+    require(
+        group
+        == {
+            "referenceName": "SpeedRead Pro",
+            "localizations": {"en-US": {"displayName": "SpeedRead Pro"}},
+        },
+        "subscription group does not match the reviewed contract",
+    )
+
+    products = contract["products"]
+    require(isinstance(products, list) and len(products) == 3, "exactly three Pro products are required")
+    expected = {
+        "com.sild.speedread.pro.monthly": {
+            "type": "auto-renewable-subscription",
+            "referenceName": "SpeedRead Pro Monthly",
+            "duration": "P1M",
+            "price": "4.99",
+            "sourceCase": "monthly",
+        },
+        "com.sild.speedread.pro.annual": {
+            "type": "auto-renewable-subscription",
+            "referenceName": "SpeedRead Pro Annual",
+            "duration": "P1Y",
+            "price": "29.99",
+            "sourceCase": "annual",
+        },
+        "com.sild.speedread.pro.lifetime": {
+            "type": "non-consumable",
+            "referenceName": "SpeedRead Pro Lifetime",
+            "duration": None,
+            "price": "79.99",
+            "sourceCase": "lifetime",
+        },
+    }
+
+    purchase_manager = (
+        root / "SpeedRead/Core/Monetization/PurchaseManager.swift"
+    ).read_text(encoding="utf-8")
+    paywall = (
+        root / "SpeedRead/Features/Monetization/ProPaywallView.swift"
+    ).read_text(encoding="utf-8")
+    for required_url in (
+        "https://sild.github.io/speedread/support.html",
+        "https://sild.github.io/speedread/privacy.html",
+        "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+    ):
+        require(required_url in paywall, f"paywall is missing required link {required_url}")
+    found_identifiers: set[str] = set()
+    for product in products:
+        product_id = product.get("productIdentifier")
+        require(product_id in expected, f"unexpected Pro product identifier {product_id}")
+        require(product_id not in found_identifiers, f"duplicate Pro product identifier {product_id}")
+        found_identifiers.add(product_id)
+        reviewed = expected[product_id]
+        common_fields = {
+            "productIdentifier",
+            "type",
+            "referenceName",
+            "familySharing",
+            "plannedLaunchPriceUSD",
+            "localizations",
+        }
+        subscription_fields = {"subscriptionDuration", "subscriptionLevel", "introductoryOffer"}
+        expected_fields = common_fields | (subscription_fields if reviewed["duration"] else set())
+        require(set(product) == expected_fields, f"{product_id}: fields do not match the reviewed schema")
+        require(product["type"] == reviewed["type"], f"{product_id}: unexpected product type")
+        require(product["referenceName"] == reviewed["referenceName"], f"{product_id}: reference name drift")
+        require(product["familySharing"] is False, f"{product_id}: Family Sharing must remain disabled")
+        require(product["plannedLaunchPriceUSD"] == reviewed["price"], f"{product_id}: launch price drift")
+        if reviewed["duration"]:
+            require(product["subscriptionDuration"] == reviewed["duration"], f"{product_id}: duration drift")
+            require(product["subscriptionLevel"] == 1, f"{product_id}: subscription level drift")
+            require(product["introductoryOffer"] is False, f"{product_id}: introductory offer drift")
+
+        localizations = product["localizations"]
+        require(set(localizations) == {"en-US"}, f"{product_id}: missing reviewed en-US localization")
+        localization = localizations["en-US"]
+        require(
+            set(localization) == {"displayName", "description"},
+            f"{product_id}: localization fields do not match the reviewed schema",
+        )
+        require(2 <= len(localization["displayName"]) <= 30, f"{product_id}: display name length")
+        require(2 <= len(localization["description"]) <= 45, f"{product_id}: description length")
+        expected_declaration = f'case {reviewed["sourceCase"]} = "{product_id}"'
+        require(expected_declaration in purchase_manager, f"{product_id}: PurchaseManager identifier drift")
+
+    require(found_identifiers == set(expected), "reviewed Pro product set is incomplete")
+    validate_storekit_configuration(root, expected)
+
+
+def validate_storekit_configuration(root: Path, expected: dict[str, dict[str, object]]) -> None:
+    configuration_path = root / "Config/SpeedRead.storekit"
+    configuration = json.loads(configuration_path.read_text(encoding="utf-8"))
+    require(
+        configuration.get("version") == {"major": 6, "minor": 3},
+        "StoreKit configuration version drift",
+    )
+    require(configuration.get("nonRenewingSubscriptions") == [], "unexpected non-renewing product")
+
+    groups = configuration.get("subscriptionGroups")
+    require(isinstance(groups, list) and len(groups) == 1, "exactly one StoreKit group is required")
+    group = groups[0]
+    require(group.get("name") == "SpeedRead Pro", "StoreKit group name drift")
+    group_id = group.get("id")
+    require(isinstance(group_id, str) and bool(group_id), "StoreKit group ID is missing")
+    require(
+        group.get("localizations")
+        == [
+            {
+                "description": "Unlimited books and private iCloud sync.",
+                "displayName": "SpeedRead Pro",
+                "locale": "en_US",
+            }
+        ],
+        "StoreKit group localization drift",
+    )
+
+    configured: set[str] = set()
+    subscriptions = group.get("subscriptions")
+    require(isinstance(subscriptions, list) and len(subscriptions) == 2, "exactly two subscriptions required")
+    for subscription in subscriptions:
+        product_id = subscription.get("productID")
+        require(product_id in expected, f"unexpected StoreKit subscription {product_id}")
+        reviewed = expected[product_id]
+        require(reviewed["duration"] is not None, f"{product_id}: expected a subscription")
+        require(product_id not in configured, f"duplicate StoreKit product {product_id}")
+        configured.add(product_id)
+        require(subscription.get("type") == "RecurringSubscription", f"{product_id}: StoreKit type drift")
+        require(subscription.get("referenceName") == reviewed["referenceName"], f"{product_id}: StoreKit name drift")
+        require(subscription.get("recurringSubscriptionPeriod") == reviewed["duration"], f"{product_id}: StoreKit duration drift")
+        require(subscription.get("displayPrice") == reviewed["price"], f"{product_id}: StoreKit price drift")
+        require(subscription.get("subscriptionGroupID") == group_id, f"{product_id}: StoreKit group drift")
+        require(subscription.get("groupNumber") == 1, f"{product_id}: StoreKit level drift")
+        require(subscription.get("familyShareable") is False, f"{product_id}: StoreKit Family Sharing")
+        for offers in ("adHocOffers", "codeOffers", "introductoryOffers", "winbackOffers"):
+            require(subscription.get(offers) == [], f"{product_id}: StoreKit {offers} must remain empty")
+        require_storekit_localization(subscription, product_id, reviewed["referenceName"])
+        billing_plans = subscription.get("billingPlans")
+        require(
+            isinstance(billing_plans, list) and len(billing_plans) == 1,
+            f"{product_id}: exactly one StoreKit billing plan is required",
+        )
+        billing_plan = billing_plans[0]
+        require(isinstance(billing_plan, dict), f"{product_id}: invalid StoreKit billing plan")
+        billing_plan_id = billing_plan.get("internalID")
+        require(
+            isinstance(billing_plan_id, str) and bool(billing_plan_id),
+            f"{product_id}: StoreKit billing plan ID is missing",
+        )
+        require(
+            billing_plans
+            == [
+                {
+                    "billingPlanType": "BILLED_UPFRONT",
+                    "commitmentDisplayPrice": reviewed["price"],
+                    "displayPrice": reviewed["price"],
+                    "internalID": billing_plan_id,
+                    "isEnabled": True,
+                }
+            ],
+            f"{product_id}: StoreKit billing plan drift",
+        )
+
+    products = configuration.get("products")
+    require(isinstance(products, list) and len(products) == 1, "exactly one StoreKit non-consumable required")
+    lifetime = products[0]
+    product_id = lifetime.get("productID")
+    reviewed = expected.get(product_id)
+    require(reviewed is not None and reviewed["duration"] is None, "unexpected StoreKit non-consumable")
+    configured.add(product_id)
+    require(lifetime.get("type") == "NonConsumable", f"{product_id}: StoreKit type drift")
+    require(lifetime.get("referenceName") == reviewed["referenceName"], f"{product_id}: StoreKit name drift")
+    require(lifetime.get("displayPrice") == reviewed["price"], f"{product_id}: StoreKit price drift")
+    require(lifetime.get("familyShareable") is False, f"{product_id}: StoreKit Family Sharing")
+    require_storekit_localization(lifetime, product_id, reviewed["referenceName"])
+    require(configured == set(expected), "StoreKit product set is incomplete")
+
+    settings = configuration.get("settings", {})
+    require(settings.get("_locale") == "en_US", "StoreKit locale drift")
+    require(settings.get("_storefront") == "USA", "StoreKit storefront drift")
+    require(settings.get("_failTransactionsEnabled") is False, "StoreKit failures must default off")
+    require(settings.get("_storeKitErrors") == [], "StoreKit simulated errors must default off")
+
+    project = (root / "project.yml").read_text(encoding="utf-8")
+    require("- Config/SpeedRead.storekit" in project, "project is missing StoreKit file group")
+    require(
+        "storeKitConfiguration: Config/SpeedRead.storekit" in project,
+        "Run scheme is missing StoreKit configuration",
+    )
+
+
+def require_storekit_localization(
+    product: dict[str, object],
+    product_id: str,
+    display_name: object,
+) -> None:
+    require(
+        product.get("localizations")
+        == [
+            {
+                "description": "Unlimited books and private iCloud sync.",
+                "displayName": display_name,
+                "locale": "en_US",
+            }
+        ],
+        f"{product_id}: StoreKit localization drift",
+    )
+
+
 def validate_metadata(root: Path) -> None:
+    validate_monetization(root)
     metadata_path = root / "AppStore/metadata.json"
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     required = {
@@ -163,7 +383,7 @@ def validate_metadata(root: Path) -> None:
     validate_https_url("supportURL", metadata["supportURL"])
     validate_https_url("privacyPolicyURL", metadata["privacyPolicyURL"])
 
-    require(metadata["bundleIdentifier"] == "com.sild.fastreader.app", "unexpected bundle identifier")
+    require(metadata["bundleIdentifier"] == "com.sild.speedread.app", "unexpected bundle identifier")
     require(metadata["marketingVersion"] == "1.0.0", "unexpected marketing version")
     require(metadata["buildNumber"] == "1", "unexpected build number")
     require(metadata["primaryCategory"] == "Books", "primary category must remain Books")
@@ -172,13 +392,13 @@ def validate_metadata(root: Path) -> None:
     for expected in (
         "CURRENT_PROJECT_VERSION: 1",
         "MARKETING_VERSION: 1.0.0",
-        "PRODUCT_BUNDLE_IDENTIFIER: com.sild.fastreader.app",
+        "PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.app",
         "LSApplicationCategoryType: public.app-category.books",
         "ITSAppUsesNonExemptEncryption: false",
     ):
         require(expected in project, f"project.yml is missing {expected}")
 
-    with (root / "FastReader/Resources/Info.plist").open("rb") as source:
+    with (root / "SpeedRead/Resources/Info.plist").open("rb") as source:
         info = plistlib.load(source)
     require(info.get("CFBundleIdentifier") == "$(PRODUCT_BUNDLE_IDENTIFIER)", "Info.plist bundle drift")
     require(info.get("CFBundleShortVersionString") == "$(MARKETING_VERSION)", "Info.plist version drift")
@@ -186,18 +406,18 @@ def validate_metadata(root: Path) -> None:
     require(info.get("ITSAppUsesNonExemptEncryption") is False, "Info.plist encryption flag drift")
 
     for page, required_text in (
-        (root / "docs/support.html", "FastReader Support"),
-        (root / "docs/privacy.html", "FastReader Privacy Policy"),
+        (root / "docs/support.html", "SpeedRead Support"),
+        (root / "docs/privacy.html", "SpeedRead Privacy Policy"),
     ):
         source = page.read_text(encoding="utf-8")
         require(required_text in source, f"{page}: missing page title")
         require("{{" not in source and "}}" not in source, f"{page}: unresolved template marker")
 
-    icon = root / "FastReader/Resources/Assets.xcassets/AppIcon.appiconset/FastReaderIcon.png"
+    icon = root / "SpeedRead/Resources/Assets.xcassets/AppIcon.appiconset/SpeedReadIcon.png"
     width, height, bit_depth, color_type = png_info(icon)
     require((width, height) == (1024, 1024), "App Store icon must be 1024 x 1024")
     require(bit_depth == 8 and color_type in {0, 2}, "App Store icon must not contain alpha")
-    require((root / "FastReader/Resources/PrivacyInfo.xcprivacy").is_file(), "privacy manifest is missing")
+    require((root / "SpeedRead/Resources/PrivacyInfo.xcprivacy").is_file(), "privacy manifest is missing")
 
 
 def validate_live_pages(root: Path, timeout: float, opener=None) -> None:
@@ -209,7 +429,7 @@ def validate_live_pages(root: Path, timeout: float, opener=None) -> None:
     for label, expected_title in LIVE_PAGES.items():
         url = metadata.get(label)
         validate_https_url(label, url)
-        request = Request(url, headers={"User-Agent": "FastReader-AppStore-Preflight/1.0"})
+        request = Request(url, headers={"User-Agent": "SpeedRead-AppStore-Preflight/1.0"})
         try:
             with open_url(request, timeout=timeout) as response:
                 final_url = response.geturl()
@@ -242,7 +462,7 @@ def validate_live_pages(root: Path, timeout: float, opener=None) -> None:
             require(support_email_found, "supportURL does not contain a public email contact")
 
     for url in sorted(linked_urls - page_urls):
-        request = Request(url, headers={"User-Agent": "FastReader-AppStore-Preflight/1.0"})
+        request = Request(url, headers={"User-Agent": "SpeedRead-AppStore-Preflight/1.0"})
         try:
             with open_url(request, timeout=timeout) as response:
                 validate_https_url("public link final URL", response.geturl())
@@ -280,7 +500,7 @@ def check_submission(args: argparse.Namespace) -> None:
 
 
 def parse_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Prepare and verify FastReader App Store assets")
+    parser = argparse.ArgumentParser(description="Prepare and verify SpeedRead App Store assets")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     find_device = subparsers.add_parser("device-id", help="find one available named simulator")
@@ -318,9 +538,9 @@ def main() -> int:
         print(f"App Store submission verification failed: {error}", file=sys.stderr)
         return 1
     if args.command == "check":
-        print("FastReader App Store submission assets are locally complete")
+        print("SpeedRead App Store submission assets are locally complete")
     elif args.command == "live-check":
-        print("FastReader public support and privacy pages are live")
+        print("SpeedRead public support and privacy pages are live")
     return 0
 
 

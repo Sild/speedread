@@ -2,7 +2,7 @@
 
 ## Direction
 
-FastReader uses a calm editorial visual language: warm paper-like surfaces,
+SpeedRead uses a calm editorial visual language: warm paper-like surfaces,
 graphite text, restrained coral/amber focus color, generous whitespace, and
 content-led hierarchy. Native controls and interactions take priority over
 decorative novelty.
@@ -79,6 +79,25 @@ status editing, book sharing, and deletion remain in the card context menu.
 - Creation and selection remain draft-only until Save. Save failures use a
   plain-language alert without dismissing the sheet; Cancel never persists a
   newly created draft tag.
+
+## SpeedRead Pro
+
+- Every library shows a crown button in the Library toolbar. It uses the same
+  44-point-or-larger native control treatment as adjacent actions and opens the
+  Pro sheet or active status without starting a purchase automatically.
+- The free Pro sheet states that all local features are free for three books,
+  then presents Monthly, Annual, and Lifetime cards with localized StoreKit
+  prices. Annual receives a truthful “Best value” outline and monthly-equivalent
+  detail without being purchased or confirmed automatically.
+- Unlimited books and private iCloud sync are the only paid feature rows. Speed
+  and OCR never open the paywall. Reaching the three-book limit leaves the
+  existing library unchanged and offers the same Pro sheet.
+- Active subscribers see Pro status and Manage Subscription instead of another
+  purchase offer. Lifetime owners see Lifetime active. Restore Purchases and a
+  visible Close action remain available in every state.
+- Do not use countdowns, false discounts, obscured close controls, or purchase
+  prompts on launch. A product-loading failure preserves verified access, keeps
+  Restore Purchases available, and marks new purchases unavailable.
 
 ## Regular Reader
 

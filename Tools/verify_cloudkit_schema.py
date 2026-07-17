@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-CONTAINER_IDENTIFIER = "iCloud.com.sild.fastreader"
+CONTAINER_IDENTIFIER = "iCloud.com.sild.speedread"
 SYSTEM_RECORD_TYPES = {"Users"}
 RECORD_TYPE_PATTERN = re.compile(
     r"\bRECORD\s+TYPE\s+([A-Za-z][A-Za-z0-9_]*)\s*\((.*?)\)\s*;",
@@ -120,8 +120,8 @@ def verify_local(args: argparse.Namespace) -> None:
     )
 
     project_source = args.project.read_text(encoding="utf-8")
-    if "PRODUCT_BUNDLE_IDENTIFIER: com.sild.fastreader.app" not in project_source:
-        raise VerificationError("project.yml: FastReader bundle identifier is missing")
+    if "PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.app" not in project_source:
+        raise VerificationError("project.yml: SpeedRead bundle identifier is missing")
 
     debug_source = args.debug_config.read_text(encoding="utf-8")
     release_source = args.release_config.read_text(encoding="utf-8")
@@ -144,7 +144,7 @@ def verify_export(args: argparse.Namespace) -> None:
 
 
 def parse_arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Verify FastReader's CloudKit schema")
+    parser = argparse.ArgumentParser(description="Verify SpeedRead's CloudKit schema")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     local = subparsers.add_parser("local", help="compare schema, code, entitlements, and configs")

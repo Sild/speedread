@@ -1,0 +1,30 @@
+{
+  "configurations" : [
+    {
+      "id" : "61EF38FA-C87A-43D8-B0C4-F167AD2D69D9",
+      "name" : "Default",
+      "options" : {
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:SpeedRead.xcodeproj",
+      "identifier" : "2FA3D0A7146CBEE59F8BDA78",
+      "name" : "SpeedRead"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "randomExecutionOrdering" : true,
+      "target" : {
+        "containerPath" : "container:SpeedRead.xcodeproj",
+        "identifier" : "48B27CE8E58243E2953C381F",
+        "name" : "SpeedReadTests"
+      }
+    }
+  ],
+  "version" : 1
+}

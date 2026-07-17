@@ -1,4 +1,4 @@
-name: FastReader
+name: SpeedRead
 
 options:
   bundleIdPrefix: com.sild
@@ -20,6 +20,9 @@ configFiles:
   Debug: Config/Debug.xcconfig
   Release: Config/Release.xcconfig
 
+fileGroups:
+  - Config/SpeedRead.storekit
+
 packages:
   Readium:
     url: https://github.com/readium/swift-toolkit.git
@@ -38,13 +41,13 @@ settings:
     TARGETED_DEVICE_FAMILY: 1,2
 
 targets:
-  FastReader:
+  SpeedRead:
     type: application
     platform: iOS
     sources:
-      - path: FastReader
+      - path: SpeedRead
     resources:
-      - path: FastReader/Resources
+      - path: SpeedRead/Resources
     dependencies:
       - package: Readium
         product: ReadiumShared
@@ -58,14 +61,14 @@ targets:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        CODE_SIGN_ENTITLEMENTS: FastReader/Resources/FastReader.entitlements
-        PRODUCT_BUNDLE_IDENTIFIER: com.sild.fastreader.app
-        PRODUCT_NAME: FastReader
+        CODE_SIGN_ENTITLEMENTS: SpeedRead/Resources/SpeedRead.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.app
+        PRODUCT_NAME: SpeedRead
         SUPPORTS_MACCATALYST: NO
     info:
-      path: FastReader/Resources/Info.plist
+      path: SpeedRead/Resources/Info.plist
       properties:
-        CFBundleDisplayName: FastReader
+        CFBundleDisplayName: SpeedRead
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleDocumentTypes:
@@ -100,57 +103,58 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         UISupportsDocumentBrowser: false
 
-  FastReaderTests:
+  SpeedReadTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - FastReaderTests
+      - SpeedReadTests
     dependencies:
-      - target: FastReader
+      - target: SpeedRead
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: com.sild.fastreader.tests
-        TEST_HOST: $(BUILT_PRODUCTS_DIR)/FastReader.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FastReader
+        PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.tests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/SpeedRead.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SpeedRead
 
-  FastReaderUITests:
+  SpeedReadUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
-      - FastReaderUITests
-      - path: FastReaderTests/Fixtures/epub3-cyrillic.epub
+      - SpeedReadUITests
+      - path: SpeedReadTests/Fixtures/epub3-cyrillic.epub
         buildPhase: resources
-      - path: FastReaderTests/Fixtures/long-chapter.epub
+      - path: SpeedReadTests/Fixtures/long-chapter.epub
         buildPhase: resources
-      - path: FastReaderTests/Fixtures/pdf-metadata-outline.pdf
+      - path: SpeedReadTests/Fixtures/pdf-metadata-outline.pdf
         buildPhase: resources
-      - path: FastReaderTests/Fixtures/pdf-image-only.pdf
+      - path: SpeedReadTests/Fixtures/pdf-image-only.pdf
         buildPhase: resources
-      - path: FastReaderTests/Fixtures/pdf-long-scanned.pdf
+      - path: SpeedReadTests/Fixtures/pdf-long-scanned.pdf
         buildPhase: resources
     dependencies:
-      - target: FastReader
+      - target: SpeedRead
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: com.sild.fastreader.uitests
-        TEST_TARGET_NAME: FastReader
+        PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.uitests
+        TEST_TARGET_NAME: SpeedRead
 
 schemes:
-  FastReader:
+  SpeedRead:
     build:
       targets:
-        FastReader: all
-        FastReaderTests: [test]
-        FastReaderUITests: [test]
+        SpeedRead: all
+        SpeedReadTests: [test]
+        SpeedReadUITests: [test]
     run:
       config: Debug
+      storeKitConfiguration: Config/SpeedRead.storekit
     test:
       config: Debug
       gatherCoverageData: true
       testPlans:
-        - path: Config/TestPlans/FastReaderUnit.xctestplan
-        - path: Config/TestPlans/FastReaderFull.xctestplan
+        - path: Config/TestPlans/SpeedReadUnit.xctestplan
+        - path: Config/TestPlans/SpeedReadFull.xctestplan
           defaultPlan: true
     profile:
       config: Release

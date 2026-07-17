@@ -213,7 +213,7 @@ BookRepository / SwiftData -> Library
 ## Private iCloud Sync
 
 `CloudKitSyncCoordinator` owns one `CKSyncEngine` for the private database and a
-custom `FastReaderLibrary` zone. `Book`, `BookAsset`, `Tag`, and `BookTag` wire
+custom `SpeedReadLibrary` zone. `Book`, `BookAsset`, `Tag`, and `BookTag` wire
 records use deterministic names derived from the publication SHA-256 and
 canonical tag name. Local SwiftData UUIDs never cross the wire or define cross-device
 relationships.

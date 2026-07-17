@@ -117,7 +117,7 @@ try addOutlineAndWriteOptions(
     source: metadataSource,
     destination: fixtureURL("pdf-metadata-outline"),
     title: "Native PDF Fixture",
-    author: "FastReader Tests",
+    author: "SpeedRead Tests",
     outlineTitles: ["Chapter One", "Chapter Two"]
 )
 

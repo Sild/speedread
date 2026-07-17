@@ -2,7 +2,7 @@
 <encryption xmlns="urn:oasis:names:tc:opendocument:xmlns:container"
             xmlns:enc="http://www.w3.org/2001/04/xmlenc#">
   <enc:EncryptedData>
-    <enc:EncryptionMethod Algorithm="urn:fastreader:unsupported-protection"/>
+    <enc:EncryptionMethod Algorithm="urn:speedread:unsupported-protection"/>
     <enc:CipherData>
       <enc:CipherReference URI="EPUB/chapter.xhtml"/>
     </enc:CipherData>

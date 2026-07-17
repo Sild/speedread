@@ -1,4 +1,4 @@
---exclude FastReader.xcodeproj
+--exclude SpeedRead.xcodeproj
 --indent 4
 --swiftversion 6.0
 --trailing-commas never

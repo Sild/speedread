@@ -1,0 +1,147 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+      }
+    ]
+  },
+  "identifier" : "F45A7EAD",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "79.99",
+      "familyShareable" : false,
+      "internalID" : "F45A7004",
+      "localizations" : [
+        {
+          "description" : "Unlimited books and private iCloud sync.",
+          "displayName" : "SpeedRead Pro Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.sild.speedread.pro.lifetime",
+      "referenceName" : "SpeedRead Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_compatibilityTimeRate" : {
+      "3" : 6
+    },
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "F45A7001",
+      "localizations" : [
+        {
+          "description" : "Unlimited books and private iCloud sync.",
+          "displayName" : "SpeedRead Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "SpeedRead Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "4.99",
+              "displayPrice" : "4.99",
+              "internalID" : "F45A7012",
+              "isEnabled" : true
+            }
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "F45A7002",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "Unlimited books and private iCloud sync.",
+              "displayName" : "SpeedRead Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.sild.speedread.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "SpeedRead Pro Monthly",
+          "subscriptionGroupID" : "F45A7001",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "29.99",
+              "displayPrice" : "29.99",
+              "internalID" : "F45A7013",
+              "isEnabled" : true
+            }
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "29.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "F45A7003",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "Unlimited books and private iCloud sync.",
+              "displayName" : "SpeedRead Pro Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.sild.speedread.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "SpeedRead Pro Annual",
+          "subscriptionGroupID" : "F45A7001",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 6,
+    "minor" : 3
+  }
+}

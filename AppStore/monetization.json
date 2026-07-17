@@ -1,0 +1,58 @@
+{
+  "automaticPriceLocalization": true,
+  "subscriptionGroup": {
+    "referenceName": "SpeedRead Pro",
+    "localizations": {
+      "en-US": {
+        "displayName": "SpeedRead Pro"
+      }
+    }
+  },
+  "products": [
+    {
+      "productIdentifier": "com.sild.speedread.pro.monthly",
+      "type": "auto-renewable-subscription",
+      "referenceName": "SpeedRead Pro Monthly",
+      "subscriptionDuration": "P1M",
+      "subscriptionLevel": 1,
+      "familySharing": false,
+      "introductoryOffer": false,
+      "plannedLaunchPriceUSD": "4.99",
+      "localizations": {
+        "en-US": {
+          "displayName": "SpeedRead Pro Monthly",
+          "description": "Unlimited books and private iCloud sync."
+        }
+      }
+    },
+    {
+      "productIdentifier": "com.sild.speedread.pro.annual",
+      "type": "auto-renewable-subscription",
+      "referenceName": "SpeedRead Pro Annual",
+      "subscriptionDuration": "P1Y",
+      "subscriptionLevel": 1,
+      "familySharing": false,
+      "introductoryOffer": false,
+      "plannedLaunchPriceUSD": "29.99",
+      "localizations": {
+        "en-US": {
+          "displayName": "SpeedRead Pro Annual",
+          "description": "Unlimited books and private iCloud sync."
+        }
+      }
+    },
+    {
+      "productIdentifier": "com.sild.speedread.pro.lifetime",
+      "type": "non-consumable",
+      "referenceName": "SpeedRead Pro Lifetime",
+      "familySharing": false,
+      "plannedLaunchPriceUSD": "79.99",
+      "localizations": {
+        "en-US": {
+          "displayName": "SpeedRead Pro Lifetime",
+          "description": "Unlimited books and private iCloud sync."
+        }
+      }
+    }
+  ]
+}

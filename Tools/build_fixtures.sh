@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root=${0:A:h:h}
-fixtures="$root/FastReaderTests/Fixtures"
+fixtures="$root/SpeedReadTests/Fixtures"
 sources="$root/Tools/FixtureSources"
 
 build_epub() {
