@@ -1,6 +1,7 @@
 import Observation
 import SwiftData
 import SwiftUI
+import UIKit
 
 @MainActor
 @Observable
@@ -55,14 +56,10 @@ final class AppBootstrap {
             repository.setCloudMutationHandler {
                 cloudSyncStatus.localMutationDidQueue()
             }
-            let failsTagWrites = ProcessInfo.processInfo.arguments.contains("-ui-testing-fail-tag-save")
-            let bookRepository: any BookRepository = if isUITesting, failsTagWrites {
-                UITestTagWriteFailureRepository(base: repository)
-            } else {
-                repository
-            }
-            let fileStore = try ApplicationSupportBookFileStore(
-                rootURL: isUITesting ? uiTestingFileRoot : nil
+            let bookRepository = makeBookRepository(isUITesting: isUITesting, repository: repository)
+            let fileStore = try makeFileStore(
+                isUITesting: isUITesting,
+                seedsCovers: seedsFilterLibrary && testsCardAlignment
             )
             let publicationService = ReadiumPublicationService()
             let importCoordinator = ImportCoordinator(
@@ -104,6 +101,34 @@ final class AppBootstrap {
 
     private static var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
+    private static var testsCardAlignment: Bool {
+        ProcessInfo.processInfo.arguments.contains("-ui-testing-card-alignment")
+    }
+
+    private static func makeFileStore(
+        isUITesting: Bool,
+        seedsCovers: Bool
+    ) throws -> ApplicationSupportBookFileStore {
+        let rootURL = isUITesting ? uiTestingFileRoot : nil
+        let fileStore = try ApplicationSupportBookFileStore(rootURL: rootURL)
+        if seedsCovers, let rootURL {
+            try seedFilterLibraryCovers(at: rootURL)
+        }
+        return fileStore
+    }
+
+    private static func makeBookRepository(
+        isUITesting: Bool,
+        repository: SwiftDataBookRepository
+    ) -> any BookRepository {
+        let failsTagWrites = ProcessInfo.processInfo.arguments.contains("-ui-testing-fail-tag-save")
+        return if isUITesting, failsTagWrites {
+            UITestTagWriteFailureRepository(base: repository)
+        } else {
+            repository
+        }
     }
 
     private static func seedLargeLibrary(in container: ModelContainer) throws {
@@ -151,6 +176,32 @@ final class AppBootstrap {
         try context.save()
     }
 
+    private static func seedFilterLibraryCovers(at rootURL: URL) throws {
+        let sizes = [
+            CGSize(width: 90, height: 160),
+            CGSize(width: 160, height: 90),
+            CGSize(width: 120, height: 120),
+            CGSize(width: 100, height: 150)
+        ]
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        for (index, size) in sizes.enumerated() {
+            let data = UIGraphicsImageRenderer(size: size, format: format).pngData { context in
+                UIColor(
+                    red: CGFloat(index + 1) / CGFloat(sizes.count + 1),
+                    green: 0.35,
+                    blue: 0.25,
+                    alpha: 1
+                ).setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+            }
+            try data.write(
+                to: rootURL.appending(path: "Covers/ui-filter-\(index).png"),
+                options: .atomic
+            )
+        }
+    }
+
     private static func filterSeedTags(ids: FilterSeedTagIDs) -> [FilterSeedTag] {
         [
             FilterSeedTag(id: ids.fiction, canonicalName: "fiction", displayName: "Fiction"),
@@ -191,15 +242,16 @@ final class AppBootstrap {
     ) {
         let bookID = UUID()
         let timestamp = importedAt.addingTimeInterval(TimeInterval(-index))
+        let format: PublicationFormat = testsCardAlignment && index == 0 ? .pdf : .epub
         let record = BookRecord(
             id: bookID,
             contentHash: "ui-filter-\(index)",
             title: book.title,
-            authorsDisplay: "Fixture Author",
-            mediaType: "application/epub+zip",
-            layout: .reflowable,
-            fileRelativePath: "Books/ui-filter-\(index).epub",
-            coverRelativePath: nil,
+            authorsDisplay: testsCardAlignment && index == 0 ? "" : "Fixture Author",
+            mediaType: format.defaultMediaType,
+            layout: format.layout,
+            fileRelativePath: "Books/ui-filter-\(index).\(format.fileExtension)",
+            coverRelativePath: testsCardAlignment ? "Covers/ui-filter-\(index).png" : nil,
             fileByteCount: 1,
             importedAt: timestamp,
             status: book.status

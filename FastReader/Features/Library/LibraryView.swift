@@ -301,7 +301,8 @@ private extension LibraryView {
                 columns: [
                     GridItem(
                         .adaptive(minimum: minimumBookCardWidth, maximum: maximumBookCardWidth),
-                        spacing: FastReaderSpacing.standard
+                        spacing: FastReaderSpacing.standard,
+                        alignment: .top
                     )
                 ],
                 spacing: FastReaderSpacing.large

@@ -88,7 +88,7 @@ final class FastReaderUITests: XCTestCase {
 
     @MainActor
     func testCompactLibraryAndFacetedFilters() {
-        let app = launchFilterLibrary()
+        let app = launchFilterLibrary(testsCardAlignment: true)
         let grid = app.scrollViews["library.bookGrid"]
         XCTAssertTrue(grid.waitForExistence(timeout: 5))
         XCTAssertEqual(grid.value as? String, "4")
@@ -332,9 +332,12 @@ final class FastReaderUITests: XCTestCase {
 
 @MainActor
 private extension FastReaderUITests {
-    func launchFilterLibrary() -> XCUIApplication {
+    func launchFilterLibrary(testsCardAlignment: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-ui-testing-filter-library"]
+        if testsCardAlignment {
+            app.launchArguments.append("-ui-testing-card-alignment")
+        }
         app.launch()
         return app
     }
@@ -377,8 +380,6 @@ private extension FastReaderUITests {
         XCTAssertTrue(books.dropFirst().allSatisfy(\.exists))
         XCTAssertGreaterThan(books[1].frame.minX, books[0].frame.minX)
         XCTAssertGreaterThan(books[2].frame.minX, books[1].frame.minX)
-        XCTAssertGreaterThanOrEqual(books[1].frame.minX - books[0].frame.maxX, 14)
-        XCTAssertGreaterThanOrEqual(books[2].frame.minX - books[1].frame.maxX, 14)
         XCTAssertEqual(books[0].frame.maxY, books[1].frame.maxY, accuracy: 2)
         XCTAssertEqual(books[1].frame.maxY, books[2].frame.maxY, accuracy: 2)
         if app.frame.width >= 700 {

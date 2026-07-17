@@ -32,22 +32,26 @@ struct BookCard: View {
     }
 
     private var cover: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: FastReaderRadius.card)
-                .fill(FastReaderPalette.raised)
-            if let coverImage {
-                Image(uiImage: coverImage)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image(systemName: "book.closed")
-                    .font(.system(size: 40, weight: .light))
-                    .foregroundStyle(FastReaderPalette.secondaryText)
+        RoundedRectangle(cornerRadius: FastReaderRadius.card)
+            .fill(FastReaderPalette.raised)
+            .aspectRatio(0.68, contentMode: .fit)
+            .overlay {
+                GeometryReader { proxy in
+                    if let coverImage {
+                        Image(uiImage: coverImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                            .clipped()
+                    } else {
+                        Image(systemName: "book.closed")
+                            .font(.system(size: 40, weight: .light))
+                            .foregroundStyle(FastReaderPalette.secondaryText)
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                    }
+                }
             }
-        }
-        .aspectRatio(0.68, contentMode: .fit)
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: FastReaderRadius.card))
+            .clipShape(RoundedRectangle(cornerRadius: FastReaderRadius.card))
     }
 
     private var status: some View {
