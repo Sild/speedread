@@ -10,7 +10,7 @@ struct RegularReaderView: View {
     @State private var viewModel: RegularReaderViewModel
     @State private var presentsOutline = false
     @State private var presentsAppearance = false
-    @State private var mode = ReaderMode.regular
+    @State private var mode: ReaderMode
     @State private var scrubProgress: Double
     @State private var isScrubbing = false
     @State private var requestedSeekProgress: Double?
@@ -26,17 +26,21 @@ struct RegularReaderView: View {
     private let fileStore: any BookFileStore
     private let publicationService: any PublicationService
     private let progressStore: any ReadingProgressStore
+    private let modePreferences: ReaderModePreferenceStore
 
     init(
         book: Book,
         fileStore: any BookFileStore,
         publicationService: any PublicationService,
-        progressStore: any ReadingProgressStore
+        progressStore: any ReadingProgressStore,
+        modePreferences: ReaderModePreferenceStore = ReaderModePreferenceStore()
     ) {
         self.book = book
         self.fileStore = fileStore
         self.publicationService = publicationService
         self.progressStore = progressStore
+        self.modePreferences = modePreferences
+        _mode = State(initialValue: modePreferences.mode(for: book.contentHash))
         _scrubProgress = State(initialValue: book.progress)
         _viewModel = State(
             initialValue: RegularReaderViewModel(
@@ -53,8 +57,10 @@ struct RegularReaderView: View {
             .background(readerBackground.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .task {
-                await viewModel.load(preferences: preferences)
-                scrubProgress = viewModel.progress
+                if mode == .regular {
+                    await viewModel.load(preferences: preferences)
+                    scrubProgress = viewModel.progress
+                }
             }
             .task(id: requestedSeekProgress) {
                 await performRequestedSeek()
@@ -145,7 +151,7 @@ struct RegularReaderView: View {
                         preferences: preferences,
                         highlightLocatorJSON: highlightLocatorJSON
                     )
-                    mode = .regular
+                    selectMode(.regular)
                 },
                 onExitBook: exitBook
             )
@@ -200,13 +206,9 @@ struct RegularReaderView: View {
     private var readerChrome: some View {
         VStack(spacing: 0) {
             HStack(spacing: FastReaderSpacing.standard) {
-                Button {
+                ReaderBackButton {
                     exitBook()
-                } label: {
-                    Image(systemName: "chevron.left")
                 }
-                .accessibilityLabel("reader.back")
-                .accessibilityIdentifier("reader.back")
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(book.title)
@@ -271,7 +273,7 @@ struct RegularReaderView: View {
                     ReaderModeControl(selection: .regular) { selectedMode in
                         if selectedMode == .speed {
                             viewModel.flushPosition()
-                            mode = .speed
+                            selectMode(.speed)
                         }
                     }
                 }
@@ -298,6 +300,11 @@ extension RegularReaderView {
     private func exitBook() {
         viewModel.flushPosition()
         dismiss()
+    }
+
+    private func selectMode(_ selectedMode: ReaderMode) {
+        modePreferences.set(selectedMode, for: book.contentHash)
+        mode = selectedMode
     }
 
     private func performRequestedSeek() async {
@@ -404,11 +411,6 @@ extension RegularReaderView {
             }
         )
     }
-}
-
-enum ReaderMode: Equatable {
-    case regular
-    case speed
 }
 
 struct ReaderModeControl: View {

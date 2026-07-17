@@ -2,6 +2,65 @@ import XCTest
 
 @MainActor
 extension FastReaderUITests {
+    func testBackFromSpeedReaderExitsTheBook() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing"]
+        app.launch()
+
+        let book = try openReaderModeFixtureBook(in: app)
+        let regularBack = app.buttons["reader.back"]
+        XCTAssertTrue(regularBack.waitForExistence(timeout: 3))
+        assertReaderBackButtonSize(regularBack)
+        let regularBackFrame = regularBack.frame
+        XCTAssertTrue(app.buttons["reader.mode.speed"].waitForExistence(timeout: 8))
+        app.buttons["reader.mode.speed"].tap()
+        let playPause = app.buttons["speed.playPause"]
+        XCTAssertTrue(playPause.waitForExistence(timeout: 8))
+        XCTAssertEqual(playPause.label, "Play")
+        app.buttons["speed.next"].tap()
+        app.buttons["speed.next"].tap()
+        app.buttons["speed.next"].tap()
+
+        app.buttons["reader.mode.regular"].tap()
+        let firstNavigator = app.otherElements["reader.navigator"]
+        XCTAssertTrue(firstNavigator.waitForExistence(timeout: 8))
+        let expectedHighlight = firstNavigator.value as? String
+        XCTAssertNotNil(expectedHighlight)
+        app.buttons["reader.mode.speed"].tap()
+        XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
+
+        let speedBack = app.buttons["reader.back"]
+        XCTAssertTrue(speedBack.exists)
+        assertReaderBackButtonSize(speedBack)
+        XCTAssertEqual(speedBack.frame.width, regularBackFrame.width, accuracy: 1)
+        XCTAssertEqual(speedBack.frame.height, regularBackFrame.height, accuracy: 1)
+        speedBack.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.85)).tap()
+        XCTAssertTrue(app.scrollViews["library.bookGrid"].waitForExistence(timeout: 5))
+        XCTAssertTrue(book.exists)
+
+        book.tap()
+        XCTAssertTrue(playPause.waitForExistence(timeout: 8))
+        XCTAssertEqual(playPause.label, "Play")
+        XCTAssertTrue(app.buttons["reader.mode.speed"].isSelected)
+        app.buttons["reader.mode.regular"].tap()
+        let navigator = app.otherElements["reader.navigator"]
+        XCTAssertTrue(navigator.waitForExistence(timeout: 8))
+        XCTAssertEqual(navigator.value as? String, expectedHighlight)
+
+        let restoredRegularBack = app.buttons["reader.back"]
+        if !restoredRegularBack.exists {
+            navigator.tap()
+        }
+        XCTAssertTrue(restoredRegularBack.waitForExistence(timeout: 3))
+        assertReaderBackButtonSize(restoredRegularBack)
+        restoredRegularBack.tap()
+        XCTAssertTrue(book.waitForExistence(timeout: 5))
+
+        book.tap()
+        XCTAssertTrue(navigator.waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["speed.playPause"].exists)
+    }
+
     func testSpeedControlsDarkLandscapeAccessibilityLayout() throws {
         let device = XCUIDevice.shared
         device.orientation = .landscapeLeft
@@ -95,6 +154,25 @@ extension FastReaderUITests {
         XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.decrease"].frame.height.rounded(), 60)
         XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.increase"].frame.width.rounded(), 60)
         XCTAssertGreaterThanOrEqual(app.buttons["speed.wpm.increase"].frame.height.rounded(), 60)
+    }
+
+    func assertReaderBackButtonSize(_ button: XCUIElement) {
+        XCTAssertGreaterThanOrEqual(button.frame.width.rounded(), 52)
+        XCTAssertGreaterThanOrEqual(button.frame.height.rounded(), 52)
+        XCTAssertTrue(button.isHittable)
+    }
+
+    func openReaderModeFixtureBook(in app: XCUIApplication) throws -> XCUIElement {
+        let fixtureURL = try XCTUnwrap(
+            Bundle(for: Self.self).url(forResource: "epub3-cyrillic", withExtension: "epub")
+        )
+        app.open(fixtureURL)
+        let book = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", "Путешествие Swift"))
+            .firstMatch
+        XCTAssertTrue(book.waitForExistence(timeout: 8))
+        book.tap()
+        return book
     }
 
     func assertWPMPlacement(in app: XCUIApplication, selectorFrame: CGRect) {

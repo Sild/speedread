@@ -24,6 +24,9 @@ final class AppBootstrap {
         self.isUITesting = isUITesting
         self.seedsLargeLibrary = seedsLargeLibrary
         self.seedsFilterLibrary = seedsFilterLibrary
+        if isUITesting {
+            ReaderModePreferenceStore().removeAll()
+        }
         state = Self.makeState(
             isUITesting: isUITesting,
             seedsLargeLibrary: seedsLargeLibrary,

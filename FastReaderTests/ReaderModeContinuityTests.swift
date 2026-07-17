@@ -11,6 +11,43 @@ struct ReaderModeContinuityTests {
     private static let epubContentHash = "long-epub-fixture"
     private static let pdfContentHash = "mode-round-trip"
 
+    @Test("Reader mode preferences default safely to regular")
+    func readerModePreferencesDefaultToRegular() throws {
+        let (defaults, suiteName) = try preferenceDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ReaderModePreferenceStore(defaults: defaults)
+
+        #expect(store.mode(for: "new-book") == .regular)
+        defaults.set(
+            "unsupported",
+            forKey: ReaderModePreferenceStore.storageKey(for: "invalid-book")
+        )
+        #expect(store.mode(for: "invalid-book") == .regular)
+    }
+
+    @Test("Reader mode preferences stay isolated per book")
+    func readerModePreferencesArePerBook() throws {
+        let (defaults, suiteName) = try preferenceDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ReaderModePreferenceStore(defaults: defaults)
+
+        store.set(.speed, for: "speed-book")
+        #expect(store.mode(for: "speed-book") == .speed)
+        #expect(store.mode(for: "regular-book") == .regular)
+        store.set(.regular, for: "speed-book")
+        #expect(store.mode(for: "speed-book") == .regular)
+    }
+
+    @Test("Reader mode preferences survive store recreation")
+    func readerModePreferencesPersist() throws {
+        let (defaults, suiteName) = try preferenceDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        ReaderModePreferenceStore(defaults: defaults).set(.speed, for: "persistent-book")
+        let reopenedStore = ReaderModePreferenceStore(defaults: defaults)
+        #expect(reopenedStore.mode(for: "persistent-book") == .speed)
+    }
+
     @Test("Settled EPUB navigator locator preserves the exact speed word")
     func settledEPUBLocatorModeRoundTrip() async throws {
         let fixtureURL = try fixture(named: "long-chapter", extension: "epub")
@@ -252,6 +289,13 @@ struct ReaderModeContinuityTests {
     private func temporaryRoot() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    }
+
+    private func preferenceDefaults() throws -> (defaults: UserDefaults, suiteName: String) {
+        let suiteName = "ReaderModeContinuityTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        return (defaults, suiteName)
     }
 }
 

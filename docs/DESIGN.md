@@ -84,7 +84,9 @@ status editing, book sharing, and deletion remain in the card context menu.
 
 - Publication content owns the screen. Top/bottom chrome fades after
   interaction and returns on center tap.
-- Top chrome: back, title/section, table of contents, appearance.
+- Top chrome: back, title/section, table of contents, appearance. Regular and
+  Speed use the same chevron with a 52-point rectangular hit target on iPhone
+  and iPad.
 - Bottom chrome: an accessible progression slider, percentage, and a centered
   regular/speed mode switch. The slider tracks live reading position until a
   drag begins, pauses chrome auto-hide while held, seeks once on release, and
@@ -118,6 +120,8 @@ status editing, book sharing, and deletion remain in the card context menu.
   return on tap.
 - Switching to regular reading adds a transient coral highlight to the active
   speed word. It communicates continuity without becoming a saved annotation.
+- Each book remembers its last locally selected mode. Reopening into Speed
+  restores the saved token while remaining paused with controls visible.
 - No animated word travel. Token replacement is instantaneous or a subtle
   cross-fade that is disabled by Reduce Motion.
 

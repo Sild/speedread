@@ -71,6 +71,8 @@ iOS/iPadOS 17 or newer.
   publication, including the bottom of a continuously scrolling PDF.
 - Switch to speed reading through the shared bottom mode selector without
   losing the current section. Back always exits the book.
+- Reopening a book restores that book's last locally selected Regular or Speed
+  mode. Restored Speed mode keeps the saved position but starts paused.
 
 ### Read quickly
 

@@ -312,22 +312,6 @@ final class FastReaderUITests: XCTestCase {
         book.press(forDuration: 1)
         XCTAssertTrue(app.buttons["library.share"].waitForExistence(timeout: 3))
     }
-
-    @MainActor
-    func testBackFromSpeedReaderExitsTheBook() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-ui-testing"]
-        app.launch()
-
-        let book = try openFixtureBook(in: app)
-        XCTAssertTrue(app.buttons["reader.mode.speed"].waitForExistence(timeout: 8))
-        app.buttons["reader.mode.speed"].tap()
-        XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
-
-        app.buttons["reader.back"].tap()
-        XCTAssertTrue(app.scrollViews["library.bookGrid"].waitForExistence(timeout: 5))
-        XCTAssertTrue(book.exists)
-    }
 }
 
 @MainActor

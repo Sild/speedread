@@ -143,14 +143,10 @@ struct SpeedReaderView: View {
 private extension SpeedReaderView {
     private var topBar: some View {
         HStack(spacing: FastReaderSpacing.standard) {
-            Button {
+            ReaderBackButton {
                 viewModel.stopAndFlush()
                 onExitBook()
-            } label: {
-                Image(systemName: "chevron.left")
             }
-            .accessibilityLabel("reader.back")
-            .accessibilityIdentifier("reader.back")
             VStack(alignment: .leading, spacing: 2) {
                 Text(book.title)
                     .font(.headline)
