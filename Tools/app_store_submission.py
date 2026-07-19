@@ -438,12 +438,12 @@ def validate_metadata(root: Path) -> None:
 
     require(metadata["bundleIdentifier"] == "com.sild.speedread.app", "unexpected bundle identifier")
     require(metadata["marketingVersion"] == "1.0.0", "unexpected marketing version")
-    require(metadata["buildNumber"] == "2", "unexpected build number")
+    require(metadata["buildNumber"] == "4", "unexpected build number")
     require(metadata["primaryCategory"] == "Books", "primary category must remain Books")
 
     project = (root / "project.yml").read_text(encoding="utf-8")
     for expected in (
-        "CURRENT_PROJECT_VERSION: 3",
+        "CURRENT_PROJECT_VERSION: 4",
         "MARKETING_VERSION: 1.0.0",
         "PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.app",
         "LSApplicationCategoryType: public.app-category.books",
