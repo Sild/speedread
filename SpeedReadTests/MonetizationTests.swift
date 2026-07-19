@@ -111,7 +111,7 @@ struct MonetizationTests {
         #expect(PurchaseManager.resolveEntitlement(from: [activeAnnual, lifetime], now: now) == .lifetime)
     }
 
-    @Test("Refund requests use the newest active subscription transaction")
+    @Test("Refund requests use the newest paid active subscription transaction")
     func refundTransactionSelection() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let olderMonthly = EntitlementRecord(
@@ -138,14 +138,24 @@ struct MonetizationTests {
             revocationDate: now,
             isUpgraded: false
         )
+        let complimentaryOffer = EntitlementRecord(
+            product: .monthly,
+            transactionID: 44,
+            purchaseDate: now,
+            expirationDate: now.addingTimeInterval(180),
+            price: 0,
+            revocationDate: nil,
+            isUpgraded: false
+        )
 
         #expect(
             PurchaseManager.refundTransactionID(
-                from: [olderMonthly, revoked, newerAnnual],
+                from: [olderMonthly, revoked, newerAnnual, complimentaryOffer],
                 now: now
             ) == 22
         )
         #expect(PurchaseManager.refundTransactionID(from: [revoked], now: now) == nil)
+        #expect(PurchaseManager.refundTransactionID(from: [complimentaryOffer], now: now) == nil)
     }
 
     @Test("A product loading failure does not erase cached Pro access")

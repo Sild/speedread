@@ -36,6 +36,7 @@ final class PurchaseManager {
         case free
         case monthly
         case annual
+        case complimentaryAnnual
         case lifetime
         case pending
         case cancelled
@@ -229,6 +230,7 @@ final class PurchaseManager {
                     transactionID: transaction.id,
                     purchaseDate: transaction.purchaseDate,
                     expirationDate: transaction.expirationDate,
+                    price: transaction.price,
                     revocationDate: transaction.revocationDate,
                     isUpgraded: transaction.isUpgraded
                 )
@@ -271,7 +273,7 @@ final class PurchaseManager {
             errorMessage = String(localized: "pro.error.verification")
         case .productUnavailable, .offlineAnnual:
             errorMessage = String(localized: "pro.error.productUnavailable")
-        case .free, .monthly, .annual, .lifetime:
+        case .free, .monthly, .annual, .complimentaryAnnual, .lifetime:
             entitlement = product == .lifetime ? .lifetime : .subscription(product)
             refundTransactionID = product == .lifetime ? nil : 1
         }
@@ -281,7 +283,7 @@ final class PurchaseManager {
         switch mode {
         case .monthly:
             .subscription(.monthly)
-        case .annual, .offlineAnnual:
+        case .annual, .complimentaryAnnual, .offlineAnnual:
             .subscription(.annual)
         case .lifetime:
             .lifetime
@@ -294,7 +296,8 @@ final class PurchaseManager {
         switch mode {
         case .monthly, .annual, .offlineAnnual:
             1
-        case .free, .lifetime, .pending, .cancelled, .verificationFailure, .productUnavailable:
+        case .free, .complimentaryAnnual, .lifetime, .pending, .cancelled, .verificationFailure,
+             .productUnavailable:
             nil
         }
     }
@@ -332,6 +335,7 @@ final class PurchaseManager {
                     && record.revocationDate == nil
                     && !record.isUpgraded
                     && record.expirationDate.map { $0 > now } == true
+                    && record.price.map { $0 > 0 } != false
                     && record.transactionID != nil
             }
             .max { $0.purchaseDate < $1.purchaseDate }?
@@ -344,6 +348,7 @@ struct EntitlementRecord: Equatable, Sendable {
     let transactionID: Transaction.ID?
     let purchaseDate: Date
     let expirationDate: Date?
+    let price: Decimal?
     let revocationDate: Date?
     let isUpgraded: Bool
 
@@ -352,6 +357,7 @@ struct EntitlementRecord: Equatable, Sendable {
         transactionID: Transaction.ID? = nil,
         purchaseDate: Date = .distantPast,
         expirationDate: Date?,
+        price: Decimal? = nil,
         revocationDate: Date?,
         isUpgraded: Bool
     ) {
@@ -359,6 +365,7 @@ struct EntitlementRecord: Equatable, Sendable {
         self.transactionID = transactionID
         self.purchaseDate = purchaseDate
         self.expirationDate = expirationDate
+        self.price = price
         self.revocationDate = revocationDate
         self.isUpgraded = isUpgraded
     }

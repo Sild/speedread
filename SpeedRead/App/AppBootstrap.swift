@@ -118,7 +118,17 @@ final class AppBootstrap {
             return PurchaseManager()
         }
         let testsFreeAccess = ProcessInfo.processInfo.arguments.contains("-ui-testing-free")
-        return PurchaseManager(testingMode: testsFreeAccess ? .free : .lifetime)
+        let testsComplimentaryAnnual = ProcessInfo.processInfo.arguments.contains(
+            "-ui-testing-complimentary-annual"
+        )
+        let testingMode: PurchaseManager.TestingMode = if testsFreeAccess {
+            .free
+        } else if testsComplimentaryAnnual {
+            .complimentaryAnnual
+        } else {
+            .lifetime
+        }
+        return PurchaseManager(testingMode: testingMode)
     }
 
     private static func makeFileStore(

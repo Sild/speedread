@@ -89,6 +89,20 @@ extension SpeedReadUITests {
         XCTAssertFalse(app.buttons["pro.redeemOfferCode"].exists)
         XCTAssertFalse(app.buttons["pro.requestRefund"].exists)
     }
+
+    @MainActor
+    func testComplimentarySubscriptionDoesNotOfferRefund() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-ui-testing-complimentary-annual"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["library.pro"].waitForExistence(timeout: 8))
+        app.buttons["library.pro"].tap()
+
+        XCTAssertTrue(app.staticTexts["Pro active"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["pro.manageSubscription"].exists)
+        XCTAssertFalse(app.buttons["pro.requestRefund"].exists)
+    }
 }
 
 @MainActor
