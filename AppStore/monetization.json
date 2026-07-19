@@ -17,6 +17,14 @@
       "subscriptionLevel": 1,
       "familySharing": false,
       "introductoryOffer": false,
+      "codeOffer": {
+        "referenceName": "SpeedRead Pro Complimentary Year",
+        "paymentMode": "free",
+        "duration": "P1Y",
+        "eligibility": ["new", "existing", "expired"],
+        "stacksWithIntroductoryOffer": false,
+        "autoRenewsAfterOffer": false
+      },
       "plannedLaunchPriceUSD": "4.99",
       "localizations": {
         "en-US": {

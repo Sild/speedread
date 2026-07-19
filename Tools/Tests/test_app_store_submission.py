@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Optional
 
 
 SCRIPT = Path(__file__).parents[1] / "app_store_submission.py"
@@ -85,6 +86,14 @@ class AppStoreSubmissionTests(unittest.TestCase):
             self.write_monetization_contract(root, storekit_family_sharing=True)
 
             with self.assertRaisesRegex(SUBJECT.SubmissionError, "StoreKit Family Sharing"):
+                SUBJECT.validate_monetization(root)
+
+    def test_rejects_storekit_code_offer_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_monetization_contract(root, storekit_code_offer_duration="P6M")
+
+            with self.assertRaisesRegex(SUBJECT.SubmissionError, "StoreKit code offer drift"):
                 SUBJECT.validate_monetization(root)
 
     def test_rejects_missing_storekit_scheme_wiring(self) -> None:
@@ -245,6 +254,7 @@ class AppStoreSubmissionTests(unittest.TestCase):
         includes_terms_link: bool = True,
         storekit_annual_price: str = "29.99",
         storekit_family_sharing: bool = False,
+        storekit_code_offer_duration: str = "P1Y",
         wires_storekit_scheme: bool = True,
     ) -> None:
         (root / "AppStore").mkdir()
@@ -267,6 +277,7 @@ class AppStoreSubmissionTests(unittest.TestCase):
                             "subscriptionLevel": subscription_level,
                             "familySharing": family_sharing,
                             "introductoryOffer": False,
+                            "codeOffer": SUBJECT.EXPECTED_CODE_OFFER,
                             "plannedLaunchPriceUSD": "4.99",
                             "localizations": {
                                 "en-US": {
@@ -323,6 +334,8 @@ class AppStoreSubmissionTests(unittest.TestCase):
         paywall_source += "https://sild.github.io/speedread/privacy.html\n"
         if includes_terms_link:
             paywall_source += "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/\n"
+        paywall_source += '.offerCodeRedemption(isPresented: $isPresented)\n'
+        paywall_source += 'accessibilityIdentifier("pro.redeemOfferCode")\n'
         (paywall / "ProPaywallView.swift").write_text(paywall_source, encoding="utf-8")
         (root / "Config").mkdir()
         storekit_products = [
@@ -333,6 +346,7 @@ class AppStoreSubmissionTests(unittest.TestCase):
                 "4.99",
                 "monthly",
                 storekit_family_sharing,
+                code_offer_duration=storekit_code_offer_duration,
             ),
             self.storekit_subscription(
                 "com.sild.speedread.pro.annual",
@@ -403,6 +417,7 @@ class AppStoreSubmissionTests(unittest.TestCase):
         price: str,
         internal_id: str,
         family_sharing: bool,
+        code_offer_duration: Optional[str] = None,
     ) -> dict[str, object]:
         return {
             "adHocOffers": [],
@@ -415,7 +430,22 @@ class AppStoreSubmissionTests(unittest.TestCase):
                     "isEnabled": True,
                 }
             ],
-            "codeOffers": [],
+            "codeOffers": (
+                [
+                    {
+                        "billingPlanType": "BILLED_UPFRONT",
+                        "eligibility": ["new", "existing", "expired"],
+                        "internalID": f"{internal_id}-code-offer",
+                        "isStackable": False,
+                        "numberOfPeriods": 1,
+                        "paymentMode": "free",
+                        "referenceName": "SpeedRead Pro Complimentary Year",
+                        "subscriptionPeriod": code_offer_duration,
+                    }
+                ]
+                if code_offer_duration is not None
+                else []
+            ),
             "displayPrice": price,
             "familyShareable": family_sharing,
             "groupNumber": 1,

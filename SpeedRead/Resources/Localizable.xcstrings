@@ -1531,6 +1531,16 @@
         }
       }
     },
+    "pro.redeemOfferCode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redeem Offer Code"
+          }
+        }
+      }
+    },
     "pro.support" : {
       "localizations" : {
         "en" : {

@@ -73,7 +73,20 @@
             }
           ],
           "codeOffers" : [
-
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "eligibility" : [
+                "new",
+                "existing",
+                "expired"
+              ],
+              "internalID" : "F45A7014",
+              "isStackable" : false,
+              "numberOfPeriods" : 1,
+              "paymentMode" : "free",
+              "referenceName" : "SpeedRead Pro Complimentary Year",
+              "subscriptionPeriod" : "P1Y"
+            }
           ],
           "displayPrice" : "4.99",
           "familyShareable" : false,

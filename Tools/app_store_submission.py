@@ -44,6 +44,14 @@ LIVE_PAGES = {
     "privacyPolicyURL": "SpeedRead Privacy Policy",
 }
 MAX_LIVE_PAGE_BYTES = 1_000_000
+EXPECTED_CODE_OFFER = {
+    "referenceName": "SpeedRead Pro Complimentary Year",
+    "paymentMode": "free",
+    "duration": "P1Y",
+    "eligibility": ["new", "existing", "expired"],
+    "stacksWithIntroductoryOffer": False,
+    "autoRenewsAfterOffer": False,
+}
 
 
 class SubmissionError(Exception):
@@ -159,6 +167,7 @@ def validate_monetization(root: Path) -> None:
             "duration": "P1M",
             "price": "4.99",
             "sourceCase": "monthly",
+            "codeOffer": EXPECTED_CODE_OFFER,
         },
         "com.sild.speedread.pro.annual": {
             "type": "auto-renewable-subscription",
@@ -166,6 +175,7 @@ def validate_monetization(root: Path) -> None:
             "duration": "P1Y",
             "price": "29.99",
             "sourceCase": "annual",
+            "codeOffer": None,
         },
         "com.sild.speedread.pro.lifetime": {
             "type": "non-consumable",
@@ -173,6 +183,7 @@ def validate_monetization(root: Path) -> None:
             "duration": None,
             "price": "79.99",
             "sourceCase": "lifetime",
+            "codeOffer": None,
         },
     }
 
@@ -188,6 +199,11 @@ def validate_monetization(root: Path) -> None:
         "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
     ):
         require(required_url in paywall, f"paywall is missing required link {required_url}")
+    require(".offerCodeRedemption(" in paywall, "paywall is missing native offer-code redemption")
+    require(
+        'accessibilityIdentifier("pro.redeemOfferCode")' in paywall,
+        "paywall is missing the offer-code accessibility identifier",
+    )
     found_identifiers: set[str] = set()
     for product in products:
         product_id = product.get("productIdentifier")
@@ -204,6 +220,8 @@ def validate_monetization(root: Path) -> None:
             "localizations",
         }
         subscription_fields = {"subscriptionDuration", "subscriptionLevel", "introductoryOffer"}
+        if reviewed["codeOffer"] is not None:
+            subscription_fields.add("codeOffer")
         expected_fields = common_fields | (subscription_fields if reviewed["duration"] else set())
         require(set(product) == expected_fields, f"{product_id}: fields do not match the reviewed schema")
         require(product["type"] == reviewed["type"], f"{product_id}: unexpected product type")
@@ -214,6 +232,8 @@ def validate_monetization(root: Path) -> None:
             require(product["subscriptionDuration"] == reviewed["duration"], f"{product_id}: duration drift")
             require(product["subscriptionLevel"] == 1, f"{product_id}: subscription level drift")
             require(product["introductoryOffer"] is False, f"{product_id}: introductory offer drift")
+            if reviewed["codeOffer"] is not None:
+                require(product["codeOffer"] == reviewed["codeOffer"], f"{product_id}: code offer drift")
 
         localizations = product["localizations"]
         require(set(localizations) == {"en-US"}, f"{product_id}: missing reviewed en-US localization")
@@ -275,8 +295,41 @@ def validate_storekit_configuration(root: Path, expected: dict[str, dict[str, ob
         require(subscription.get("subscriptionGroupID") == group_id, f"{product_id}: StoreKit group drift")
         require(subscription.get("groupNumber") == 1, f"{product_id}: StoreKit level drift")
         require(subscription.get("familyShareable") is False, f"{product_id}: StoreKit Family Sharing")
-        for offers in ("adHocOffers", "codeOffers", "introductoryOffers", "winbackOffers"):
+        for offers in ("adHocOffers", "introductoryOffers", "winbackOffers"):
             require(subscription.get(offers) == [], f"{product_id}: StoreKit {offers} must remain empty")
+        expected_code_offers = []
+        if reviewed["codeOffer"] is not None:
+            configured_code_offers = subscription.get("codeOffers")
+            require(
+                isinstance(configured_code_offers, list) and len(configured_code_offers) == 1,
+                f"{product_id}: exactly one StoreKit code offer is required",
+            )
+            configured_code_offer = configured_code_offers[0]
+            require(
+                isinstance(configured_code_offer, dict),
+                f"{product_id}: invalid StoreKit code offer",
+            )
+            code_offer_id = configured_code_offer.get("internalID")
+            require(
+                isinstance(code_offer_id, str) and bool(code_offer_id),
+                f"{product_id}: StoreKit code offer ID is missing",
+            )
+            expected_code_offers = [
+                {
+                    "billingPlanType": "BILLED_UPFRONT",
+                    "eligibility": reviewed["codeOffer"]["eligibility"],
+                    "internalID": code_offer_id,
+                    "isStackable": reviewed["codeOffer"]["stacksWithIntroductoryOffer"],
+                    "numberOfPeriods": 1,
+                    "paymentMode": reviewed["codeOffer"]["paymentMode"],
+                    "referenceName": reviewed["codeOffer"]["referenceName"],
+                    "subscriptionPeriod": reviewed["codeOffer"]["duration"],
+                }
+            ]
+        require(
+            subscription.get("codeOffers") == expected_code_offers,
+            f"{product_id}: StoreKit code offer drift",
+        )
         require_storekit_localization(subscription, product_id, reviewed["referenceName"])
         billing_plans = subscription.get("billingPlans")
         require(
@@ -385,12 +438,12 @@ def validate_metadata(root: Path) -> None:
 
     require(metadata["bundleIdentifier"] == "com.sild.speedread.app", "unexpected bundle identifier")
     require(metadata["marketingVersion"] == "1.0.0", "unexpected marketing version")
-    require(metadata["buildNumber"] == "1", "unexpected build number")
+    require(metadata["buildNumber"] == "2", "unexpected build number")
     require(metadata["primaryCategory"] == "Books", "primary category must remain Books")
 
     project = (root / "project.yml").read_text(encoding="utf-8")
     for expected in (
-        "CURRENT_PROJECT_VERSION: 1",
+        "CURRENT_PROJECT_VERSION: 2",
         "MARKETING_VERSION: 1.0.0",
         "PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.app",
         "LSApplicationCategoryType: public.app-category.books",

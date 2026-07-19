@@ -6,6 +6,8 @@ struct ProPaywallView: View {
 
     @State var purchaseManager: PurchaseManager
     @State private var presentsManageSubscriptions = false
+    @State private var presentsOfferCodeRedemption = false
+    @State private var offerRedemptionRefreshID = 0
 
     var body: some View {
         NavigationStack {
@@ -14,6 +16,7 @@ struct ProPaywallView: View {
                     header
                     features
                     entitlementContent
+                    offerCodeButton
                     restoreButton
                     legalLinks
                 }
@@ -36,6 +39,17 @@ struct ProPaywallView: View {
         }
         .interactiveDismissDisabled(purchaseManager.isWorking)
         .manageSubscriptionsSheet(isPresented: $presentsManageSubscriptions)
+        .offerCodeRedemption(isPresented: $presentsOfferCodeRedemption) { result in
+            if case .success = result {
+                offerRedemptionRefreshID += 1
+            }
+        }
+        .task(id: offerRedemptionRefreshID) {
+            guard offerRedemptionRefreshID > 0 else {
+                return
+            }
+            await purchaseManager.refreshEntitlement()
+        }
         .alert("pro.error.title", isPresented: errorPresented) {
             Button("action.ok") {
                 purchaseManager.dismissError()
@@ -195,6 +209,21 @@ struct ProPaywallView: View {
         .disabled(purchaseManager.isWorking)
         .frame(maxWidth: .infinity)
         .accessibilityIdentifier("pro.restore")
+    }
+
+    @ViewBuilder
+    private var offerCodeButton: some View {
+        switch purchaseManager.entitlement {
+        case .free, .subscription:
+            Button("pro.redeemOfferCode") {
+                presentsOfferCodeRedemption = true
+            }
+            .disabled(purchaseManager.isWorking)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier("pro.redeemOfferCode")
+        case .loading, .lifetime:
+            EmptyView()
+        }
     }
 
     private var legalLinks: some View {
