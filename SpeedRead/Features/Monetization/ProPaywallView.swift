@@ -7,6 +7,7 @@ struct ProPaywallView: View {
     @State var purchaseManager: PurchaseManager
     @State private var presentsManageSubscriptions = false
     @State private var presentsOfferCodeRedemption = false
+    @State private var presentsRefundRequest = false
     @State private var offerRedemptionRefreshID = 0
 
     var body: some View {
@@ -42,6 +43,14 @@ struct ProPaywallView: View {
         .offerCodeRedemption(isPresented: $presentsOfferCodeRedemption) { result in
             if case .success = result {
                 offerRedemptionRefreshID += 1
+            }
+        }
+        .refundRequestSheet(
+            for: purchaseManager.refundTransactionID ?? 0,
+            isPresented: $presentsRefundRequest
+        ) { result in
+            Task {
+                await purchaseManager.handleRefundRequestDismissal(result)
             }
         }
         .task(id: offerRedemptionRefreshID) {
@@ -111,6 +120,14 @@ struct ProPaywallView: View {
             .foregroundStyle(SpeedReadPalette.onFocus)
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("pro.manageSubscription")
+            if purchaseManager.refundTransactionID != nil {
+                Button("pro.requestRefund") {
+                    presentsRefundRequest = true
+                }
+                .disabled(purchaseManager.isWorking)
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("pro.requestRefund")
+            }
         case .lifetime:
             activeCard(title: "pro.active.lifetime", message: "pro.active.lifetime.message")
         }

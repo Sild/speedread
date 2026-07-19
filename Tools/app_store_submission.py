@@ -443,7 +443,7 @@ def validate_metadata(root: Path) -> None:
 
     project = (root / "project.yml").read_text(encoding="utf-8")
     for expected in (
-        "CURRENT_PROJECT_VERSION: 2",
+        "CURRENT_PROJECT_VERSION: 3",
         "MARKETING_VERSION: 1.0.0",
         "PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.app",
         "LSApplicationCategoryType: public.app-category.books",

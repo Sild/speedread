@@ -1361,6 +1361,16 @@
         }
       }
     },
+    "pro.error.refund" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The refund request could not be completed. Please try again."
+          }
+        }
+      }
+    },
     "pro.error.title" : {
       "localizations" : {
         "en" : {
@@ -1527,6 +1537,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restore Purchases"
+          }
+        }
+      }
+    },
+    "pro.requestRefund" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Request Refund"
           }
         }
       }

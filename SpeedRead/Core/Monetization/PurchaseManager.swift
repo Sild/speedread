@@ -48,6 +48,7 @@ final class PurchaseManager {
     private(set) var products: [ProProduct: Product] = [:]
     private(set) var isWorking = false
     private(set) var errorMessage: String?
+    private(set) var refundTransactionID: Transaction.ID?
 
     private let testingMode: TestingMode?
     @ObservationIgnored
@@ -114,6 +115,7 @@ final class PurchaseManager {
 
         if let testingMode {
             entitlement = Self.testEntitlement(for: testingMode)
+            refundTransactionID = Self.testRefundTransactionID(for: testingMode)
             return
         }
 
@@ -189,6 +191,21 @@ final class PurchaseManager {
         errorMessage = nil
     }
 
+    func handleRefundRequestDismissal(
+        _ result: Result<Transaction.RefundRequestStatus, Transaction.RefundRequestError>
+    ) async {
+        switch result {
+        case .success(.success):
+            await refreshEntitlement()
+        case .success(.userCancelled):
+            return
+        case .failure:
+            errorMessage = String(localized: "pro.error.refund")
+        @unknown default:
+            errorMessage = String(localized: "pro.error.refund")
+        }
+    }
+
     func stop() {
         updatesTask?.cancel()
         updatesTask = nil
@@ -209,6 +226,8 @@ final class PurchaseManager {
             records.append(
                 EntitlementRecord(
                     product: product,
+                    transactionID: transaction.id,
+                    purchaseDate: transaction.purchaseDate,
                     expirationDate: transaction.expirationDate,
                     revocationDate: transaction.revocationDate,
                     isUpgraded: transaction.isUpgraded
@@ -216,6 +235,7 @@ final class PurchaseManager {
             )
         }
         entitlement = Self.resolveEntitlement(from: records, now: .now)
+        refundTransactionID = Self.refundTransactionID(from: records, now: .now)
     }
 
     private func loadProducts() async {
@@ -253,6 +273,7 @@ final class PurchaseManager {
             errorMessage = String(localized: "pro.error.productUnavailable")
         case .free, .monthly, .annual, .lifetime:
             entitlement = product == .lifetime ? .lifetime : .subscription(product)
+            refundTransactionID = product == .lifetime ? nil : 1
         }
     }
 
@@ -266,6 +287,15 @@ final class PurchaseManager {
             .lifetime
         case .free, .pending, .cancelled, .verificationFailure, .productUnavailable:
             .free
+        }
+    }
+
+    private static func testRefundTransactionID(for mode: TestingMode) -> Transaction.ID? {
+        switch mode {
+        case .monthly, .annual, .offlineAnnual:
+            1
+        case .free, .lifetime, .pending, .cancelled, .verificationFailure, .productUnavailable:
+            nil
         }
     }
 
@@ -291,11 +321,45 @@ final class PurchaseManager {
         }
         return .free
     }
+
+    nonisolated static func refundTransactionID(
+        from records: [EntitlementRecord],
+        now: Date
+    ) -> Transaction.ID? {
+        records
+            .filter { record in
+                record.product != .lifetime
+                    && record.revocationDate == nil
+                    && !record.isUpgraded
+                    && record.expirationDate.map { $0 > now } == true
+                    && record.transactionID != nil
+            }
+            .max { $0.purchaseDate < $1.purchaseDate }?
+            .transactionID
+    }
 }
 
 struct EntitlementRecord: Equatable, Sendable {
     let product: ProProduct
+    let transactionID: Transaction.ID?
+    let purchaseDate: Date
     let expirationDate: Date?
     let revocationDate: Date?
     let isUpgraded: Bool
+
+    init(
+        product: ProProduct,
+        transactionID: Transaction.ID? = nil,
+        purchaseDate: Date = .distantPast,
+        expirationDate: Date?,
+        revocationDate: Date?,
+        isUpgraded: Bool
+    ) {
+        self.product = product
+        self.transactionID = transactionID
+        self.purchaseDate = purchaseDate
+        self.expirationDate = expirationDate
+        self.revocationDate = revocationDate
+        self.isUpgraded = isUpgraded
+    }
 }

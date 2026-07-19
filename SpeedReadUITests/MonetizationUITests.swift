@@ -69,6 +69,7 @@ extension SpeedReadUITests {
         app.buttons["pro.purchase.com.sild.speedread.pro.annual"].tap()
         XCTAssertTrue(app.staticTexts["Pro active"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["pro.manageSubscription"].exists)
+        XCTAssertTrue(app.buttons["pro.requestRefund"].isHittable)
         XCTAssertTrue(app.buttons["pro.redeemOfferCode"].isHittable)
         XCTAssertFalse(app.buttons["pro.purchase.com.sild.speedread.pro.lifetime"].exists)
         app.buttons["pro.close"].tap()
@@ -86,6 +87,7 @@ extension SpeedReadUITests {
 
         XCTAssertTrue(app.navigationBars["SpeedRead Pro"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["pro.redeemOfferCode"].exists)
+        XCTAssertFalse(app.buttons["pro.requestRefund"].exists)
     }
 }
 
