@@ -44,6 +44,7 @@ LIVE_PAGES = {
     "privacyPolicyURL": "SpeedRead Privacy Policy",
 }
 MAX_LIVE_PAGE_BYTES = 1_000_000
+STANDARD_EULA_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
 EXPECTED_CODE_OFFER = {
     "referenceName": "SpeedRead Pro Complimentary Year",
     "paymentMode": "free",
@@ -137,6 +138,10 @@ def validate_https_url(label: str, value: object) -> None:
     require(isinstance(value, str), f"{label} must be a string")
     parsed = urlparse(value)
     require(parsed.scheme == "https" and bool(parsed.netloc), f"{label} must be an HTTPS URL")
+
+
+def validate_app_description(description: str) -> None:
+    require(STANDARD_EULA_URL in description, "description must link to the standard Apple Terms of Use")
 
 
 def validate_monetization(root: Path) -> None:
@@ -429,6 +434,7 @@ def validate_metadata(root: Path) -> None:
     require(len(metadata["subtitle"]) <= 30, "subtitle exceeds 30 characters")
     require(len(metadata["promotionalText"]) <= 170, "promotional text exceeds 170 characters")
     require(len(metadata["description"]) <= 4000, "description exceeds 4000 characters")
+    validate_app_description(metadata["description"])
     require(len(metadata["reviewNotes"].encode("utf-8")) <= 4000, "review notes exceed 4000 bytes")
     require(len(metadata["keywords"].encode("utf-8")) <= 100, "keywords exceed 100 bytes")
     keywords = metadata["keywords"].split(",")

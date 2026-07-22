@@ -25,6 +25,10 @@ def write_png_header(path: Path, width: int, height: int, color_type: int = 2) -
 
 
 class AppStoreSubmissionTests(unittest.TestCase):
+    def test_rejects_app_description_without_terms_link(self) -> None:
+        with self.assertRaisesRegex(SUBJECT.SubmissionError, "standard Apple Terms of Use"):
+            SUBJECT.validate_app_description("SpeedRead is a private local reader.")
+
     def test_accepts_reviewed_monetization_contract(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
