@@ -1,5 +1,4 @@
 import Foundation
-@testable import SpeedRead
 import Testing
 
 @Suite("Speed reader session")

@@ -35,18 +35,13 @@ final class AppStoreScreenshotUITests: XCTestCase {
         XCTAssertTrue(book.waitForExistence(timeout: 8))
         book.tap()
 
-        XCTAssertTrue(readerApp.otherElements["reader.navigator"].waitForExistence(timeout: 8))
-        XCTAssertTrue(readerApp.buttons["reader.mode.speed"].waitForExistence(timeout: 3))
-        let speedMode = restartReaderChrome(in: readerApp)
+        _ = try requireExistence(readerApp.otherElements["reader.navigator"], timeout: 8)
+        _ = try requireReaderControl("reader.mode.speed", in: readerApp)
         if !usesWideLayout {
             attachScreenshot(named: "AppStore-02-Regular-Reader")
         }
 
-        if !speedMode.waitForExistence(timeout: 1) {
-            readerApp.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        }
-        XCTAssertTrue(speedMode.waitForExistence(timeout: 3))
-        speedMode.tap()
+        try requireReaderControl("reader.mode.speed", in: readerApp).tap()
         XCTAssertTrue(readerApp.buttons["speed.playPause"].waitForExistence(timeout: 8))
         readerApp.buttons["speed.next"].tap()
         readerApp.buttons["speed.next"].tap()
@@ -69,17 +64,6 @@ private extension AppStoreScreenshotUITests {
         XCTAssertTrue(editTags.waitForExistence(timeout: 3))
         editTags.tap()
         XCTAssertTrue(app.navigationBars["Edit Tags"].waitForExistence(timeout: 3))
-    }
-
-    func restartReaderChrome(in app: XCUIApplication) -> XCUIElement {
-        let speedMode = app.buttons["reader.mode.speed"]
-        if speedMode.exists {
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-            XCTAssertTrue(speedMode.waitForNonExistence(timeout: 3))
-        }
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        XCTAssertTrue(speedMode.waitForExistence(timeout: 3))
-        return speedMode
     }
 
     func attachScreenshot(named name: String) {

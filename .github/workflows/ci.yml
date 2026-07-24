@@ -1,4 +1,4 @@
-name: CI
+name: Fast CI
 
 on:
   pull_request:
@@ -10,22 +10,144 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: fast-ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
 
-      - name: Install project tools
-        run: brew bundle
+      - name: Classify changed files
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base="$BEFORE_SHA"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base="$PR_BASE_SHA"
+          fi
+
+          run_xcode=true
+          if [[ -n "$base" && ! "$base" =~ ^0+$ ]] && git cat-file -e "$base^{commit}"; then
+            run_xcode=false
+            while IFS= read -r path; do
+              if [[ ! "$path" =~ ^(AppStore/|docs/|AGENTS\.md$|README\.md$|ROADMAP\.md$|LICENSE) ]]; then
+                run_xcode=true
+                break
+              fi
+            done < <(git diff --name-only "$base" "$GITHUB_SHA")
+          fi
+
+          echo "run_xcode=$run_xcode" >> "$GITHUB_OUTPUT"
+          echo "### Fast CI durations" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase | Result | Tests | Duration |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- | ---: |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run portable preflight
+        timeout-minutes: 2
+        run: |
+          started=$SECONDS
+          make tooling-check cloudkit-static-check app-store-check
+          echo "| Portable preflight | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Read pinned tool versions
+        if: steps.changes.outputs.run_xcode == 'true'
+        id: tool-versions
+        run: |
+          source Tools/versions.env
+          echo "key=$XCODEGEN_VERSION-$SWIFTFORMAT_VERSION-$SWIFTLINT_VERSION-$(uname -m)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pinned tools
+        if: steps.changes.outputs.run_xcode == 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .build/tools
+          key: speedread-tools-${{ runner.os }}-${{ steps.tool-versions.outputs.key }}
 
       - name: Select Xcode 26.6
+        if: steps.changes.outputs.run_xcode == 'true'
         run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
 
-      - name: Validate
-        run: make ci
+      - name: Install pinned tools
+        if: steps.changes.outputs.run_xcode == 'true'
+        timeout-minutes: 2
+        run: ./Tools/install_tools.sh
+
+      - name: Run deterministic project and static checks
+        if: steps.changes.outputs.run_xcode == 'true'
+        timeout-minutes: 2
+        run: |
+          started=$SECONDS
+          make version-check cloudkit-check project-check format-check lint
+          echo "| Project and static checks | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run native logic tests
+        if: steps.changes.outputs.run_xcode == 'true'
+        timeout-minutes: 2
+        run: |
+          started=$SECONDS
+          make logic-test
+          echo "| Native logic tests | Passed | 17 | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start simulator
+        if: steps.changes.outputs.run_xcode == 'true'
+        timeout-minutes: 2
+        run: |
+          started=$SECONDS
+          xcrun simctl bootstatus "iPhone 17 Pro" -b
+          echo "| Simulator startup | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build tests
+        if: steps.changes.outputs.run_xcode == 'true'
+        timeout-minutes: 5
+        run: |
+          started=$SECONDS
+          make build-for-testing
+          echo "| Build for testing | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run iOS integration tests
+        if: steps.changes.outputs.run_xcode == 'true'
+        timeout-minutes: 3
+        run: |
+          started=$SECONDS
+          make unit-test-without-building
+          echo "| iOS integration tests | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run four UI journeys
+        if: steps.changes.outputs.run_xcode == 'true'
+        timeout-minutes: 5
+        run: |
+          mkdir -p .build/TestResults
+          UI_RETRY=YES \
+          UI_RESULT_BUNDLE=.build/TestResults/FastUI.xcresult \
+            make ui-smoke
+
+      - name: Summarize UI retries
+        if: always() && steps.changes.outputs.run_xcode == 'true'
+        id: ui-summary
+        run: |
+          if [[ -d .build/TestResults/FastUI.xcresult ]]; then
+            /usr/bin/python3 Tools/summarize_xcresult.py \
+              .build/TestResults/FastUI.xcresult \
+              --label "Four UI journeys"
+          else
+            echo "retried=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Retain failed or retried UI results
+        if: failure() || steps.ui-summary.outputs.retried == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fast-ui-xcresult-${{ github.run_attempt }}
+          path: .build/TestResults/FastUI.xcresult
+          if-no-files-found: ignore
+          retention-days: 7

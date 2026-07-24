@@ -1,0 +1,113 @@
+name: Full Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Read pinned tool versions
+        id: tool-versions
+        run: |
+          source Tools/versions.env
+          echo "key=$XCODEGEN_VERSION-$SWIFTFORMAT_VERSION-$SWIFTLINT_VERSION-$(uname -m)" >> "$GITHUB_OUTPUT"
+          echo "### Full-validation durations" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Phase | Result | Tests | Duration |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- | ---: |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restore pinned tools
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .build/tools
+          key: speedread-tools-${{ runner.os }}-${{ steps.tool-versions.outputs.key }}
+
+      - name: Select Xcode 26.6
+        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+
+      - name: Install pinned tools
+        timeout-minutes: 2
+        run: ./Tools/install_tools.sh
+
+      - name: Run preflight and static checks
+        timeout-minutes: 3
+        run: |
+          started=$SECONDS
+          make version-check tooling-check cloudkit-check app-store-check project-check format-check lint
+          echo "| Preflight and static checks | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run native logic tests
+        timeout-minutes: 2
+        run: |
+          started=$SECONDS
+          make logic-test
+          echo "| Native logic tests | Passed | 17 | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start simulator
+        timeout-minutes: 2
+        run: |
+          started=$SECONDS
+          xcrun simctl bootstatus "iPhone 17 Pro" -b
+          echo "| Simulator startup | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build tests
+        timeout-minutes: 6
+        run: |
+          started=$SECONDS
+          make build-for-testing
+          echo "| Build for testing | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run all iOS integration tests
+        timeout-minutes: 5
+        run: |
+          started=$SECONDS
+          make unit-test-without-building
+          echo "| All iOS integration tests | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run all UI and screenshot tests
+        timeout-minutes: 10
+        run: |
+          mkdir -p .build/TestResults
+          UI_RETRY=YES \
+          UI_RESULT_BUNDLE=.build/TestResults/FullUI.xcresult \
+            make ui-test-without-building
+
+      - name: Summarize UI retries
+        if: always()
+        id: ui-summary
+        run: |
+          if [[ -d .build/TestResults/FullUI.xcresult ]]; then
+            /usr/bin/python3 Tools/summarize_xcresult.py \
+              .build/TestResults/FullUI.xcresult \
+              --label "All UI and screenshot tests"
+          else
+            echo "retried=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate unsigned archive
+        timeout-minutes: 7
+        run: |
+          started=$SECONDS
+          make archive-check
+          echo "| Unsigned archive | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain failed or retried UI results
+        if: failure() || steps.ui-summary.outputs.retried == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: full-ui-xcresult-${{ github.run_attempt }}
+          path: .build/TestResults/FullUI.xcresult
+          if-no-files-found: ignore
+          retention-days: 7

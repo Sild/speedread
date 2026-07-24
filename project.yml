@@ -139,6 +139,30 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.uitests
         TEST_TARGET_NAME: SpeedRead
 
+  SpeedReadLogicTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - SpeedReadLogicTests
+      - SpeedRead/Core/Domain/Book.swift
+      - SpeedRead/Core/Domain/BookStatus.swift
+      - SpeedRead/Core/Domain/LibraryFacetCounts.swift
+      - SpeedRead/Core/Domain/LibraryFilter.swift
+      - SpeedRead/Core/Domain/PublicationFormat.swift
+      - SpeedRead/Core/Domain/ReaderEndDetection.swift
+      - SpeedRead/Core/Domain/ReadingPosition.swift
+      - SpeedRead/Core/Domain/TagNormalizer.swift
+      - SpeedRead/Core/Domain/TagSelectionDraft.swift
+      - SpeedRead/Core/Publication/SpeedContentProviding.swift
+      - SpeedRead/Features/SpeedReader/SpeedReaderModels.swift
+      - SpeedRead/Features/SpeedReader/SpeedReaderSession.swift
+      - SpeedRead/Features/SpeedReader/SpeedTokenizer.swift
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.sild.speedread.logic-tests
+
 schemes:
   SpeedRead:
     build:
@@ -151,7 +175,7 @@ schemes:
       storeKitConfiguration: Config/SpeedRead.storekit
     test:
       config: Debug
-      gatherCoverageData: true
+      gatherCoverageData: false
       testPlans:
         - path: Config/TestPlans/SpeedReadUnit.xctestplan
         - path: Config/TestPlans/SpeedReadFull.xctestplan
@@ -162,3 +186,27 @@ schemes:
       config: Debug
     archive:
       config: Release
+
+  SpeedReadIntegrationTests:
+    build:
+      targets:
+        SpeedRead: all
+        SpeedReadTests: [test]
+    test:
+      config: Debug
+      gatherCoverageData: false
+      testPlans:
+        - path: Config/TestPlans/SpeedReadUnit.xctestplan
+          defaultPlan: true
+
+  SpeedReadLogicTests:
+    build:
+      targets:
+        SpeedReadLogicTests: [test]
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - name: SpeedReadLogicTests
+          parallelizable: true
+          randomExecutionOrder: true

@@ -8,12 +8,11 @@ extension SpeedReadUITests {
         app.launch()
 
         let book = try openReaderModeFixtureBook(in: app)
-        let regularBack = app.buttons["reader.back"]
-        XCTAssertTrue(regularBack.waitForExistence(timeout: 3))
+        let regularBack = try requireReaderControl("reader.back", in: app)
         assertReaderBackButtonSize(regularBack)
         let regularBackFrame = regularBack.frame
-        XCTAssertTrue(app.buttons["reader.mode.speed"].waitForExistence(timeout: 8))
-        app.buttons["reader.mode.speed"].tap()
+        let speedMode = try requireReaderControl("reader.mode.speed", in: app)
+        speedMode.tap()
         let playPause = app.buttons["speed.playPause"]
         XCTAssertTrue(playPause.waitForExistence(timeout: 8))
         XCTAssertEqual(playPause.label, "Play")
@@ -47,11 +46,7 @@ extension SpeedReadUITests {
         XCTAssertTrue(navigator.waitForExistence(timeout: 8))
         XCTAssertEqual(navigator.value as? String, expectedHighlight)
 
-        let restoredRegularBack = app.buttons["reader.back"]
-        if !restoredRegularBack.exists {
-            navigator.tap()
-        }
-        XCTAssertTrue(restoredRegularBack.waitForExistence(timeout: 3))
+        let restoredRegularBack = try requireReaderControl("reader.back", in: app)
         assertReaderBackButtonSize(restoredRegularBack)
         restoredRegularBack.tap()
         XCTAssertTrue(book.waitForExistence(timeout: 5))
@@ -82,12 +77,11 @@ extension SpeedReadUITests {
         let book = app.buttons
             .matching(NSPredicate(format: "label CONTAINS %@", "Путешествие Swift"))
             .firstMatch
-        XCTAssertTrue(book.waitForExistence(timeout: 8))
+        _ = try requireExistence(book, timeout: 8)
         book.tap()
-        XCTAssertTrue(app.buttons["reader.mode.speed"].waitForExistence(timeout: 8))
-        app.buttons["reader.mode.speed"].tap()
+        try requireReaderControl("reader.mode.speed", in: app).tap()
         XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
-        assertWPMPlacement(in: app, selectorFrame: selectorFrame(in: app))
+        try assertWPMPlacement(in: app, selectorFrame: selectorFrame(in: app))
         assertSpeedButtonSizes(in: app)
         attachScreenshot(named: "Dark landscape accessibility speed controls")
         try app.performAccessibilityAudit(for: [
@@ -99,14 +93,14 @@ extension SpeedReadUITests {
         ])
     }
 
-    func exerciseSpeedReader(in app: XCUIApplication) {
-        let regularSelectorFrame = selectorFrame(in: app)
-        app.buttons["reader.mode.speed"].tap()
+    func exerciseSpeedReader(in app: XCUIApplication) throws {
+        let regularSelectorFrame = try selectorFrame(in: app)
+        try requireReaderControl("reader.mode.speed", in: app).tap()
         XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["speed.wpm"].exists)
         XCTAssertTrue(app.buttons["speed.wpm.decrease"].exists)
         XCTAssertTrue(app.buttons["speed.wpm.increase"].exists)
-        let speedSelectorFrame = selectorFrame(in: app)
+        let speedSelectorFrame = try selectorFrame(in: app)
         XCTAssertEqual(speedSelectorFrame.midX, regularSelectorFrame.midX, accuracy: 2)
         XCTAssertEqual(speedSelectorFrame.midY, regularSelectorFrame.midY, accuracy: 2)
         assertWPMPlacement(in: app, selectorFrame: speedSelectorFrame)
@@ -136,7 +130,7 @@ extension SpeedReadUITests {
             .firstMatch
         XCTAssertTrue(highlightedParagraph.waitForExistence(timeout: 8))
         attachScreenshot(named: "Regular reader active speed word highlight")
-        app.buttons["reader.mode.speed"].tap()
+        try requireReaderControl("reader.mode.speed", in: app).tap()
         XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
         app.buttons["reader.mode.regular"].tap()
         XCTAssertTrue(navigator.waitForExistence(timeout: 8))
@@ -170,7 +164,7 @@ extension SpeedReadUITests {
         let book = app.buttons
             .matching(NSPredicate(format: "label CONTAINS %@", "Путешествие Swift"))
             .firstMatch
-        XCTAssertTrue(book.waitForExistence(timeout: 8))
+        _ = try requireExistence(book, timeout: 8)
         book.tap()
         return book
     }
@@ -191,11 +185,11 @@ extension SpeedReadUITests {
         XCTAssertEqual(increase.frame.midY, selectorFrame.midY, accuracy: 2)
     }
 
-    func selectorFrame(in app: XCUIApplication) -> CGRect {
+    func selectorFrame(in app: XCUIApplication) throws -> CGRect {
         let selector = app.descendants(matching: .any)
             .matching(identifier: "reader.mode.selector")
             .firstMatch
-        XCTAssertTrue(selector.exists)
+        _ = try requireExistence(selector, timeout: 3)
         return selector.frame
     }
 

@@ -2,6 +2,7 @@ strict: true
 
 included:
   - SpeedRead
+  - SpeedReadLogicTests
   - SpeedReadTests
   - SpeedReadUITests
 

@@ -30,21 +30,14 @@ final class PDFUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["reader.navigator"].waitForExistence(timeout: 8))
         scrubRegularReaderProgress(in: app)
 
-        let appearanceButton = app.buttons["reader.appearance"]
-        revealReaderChrome(in: app, visibleControl: appearanceButton)
+        let appearanceButton = try requireReaderControl("reader.appearance", in: app)
         appearanceButton.tap()
         let scrollSwitch = app.switches["reader.appearance.scroll"]
         XCTAssertTrue(scrollSwitch.waitForExistence(timeout: 3))
         XCTAssertEqual(scrollSwitch.value as? String, "1")
         XCTAssertFalse(app.pickers["reader.appearance.font"].exists)
         app.buttons["reader.appearance.close"].tap()
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-
-        let speedButton = app.buttons["reader.mode.speed"]
-        if !speedButton.waitForExistence(timeout: 3) {
-            app.otherElements["reader.navigator"].tap()
-        }
-        XCTAssertTrue(speedButton.waitForExistence(timeout: 3))
+        let speedButton = try requireReaderControl("reader.mode.speed", in: app)
         speedButton.tap()
         _ = app.progressIndicators["speed.loading"].waitForExistence(timeout: 1)
         XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 12))
@@ -65,38 +58,28 @@ final class PDFUITests: XCTestCase {
     private func scrubRegularReaderProgress(in app: XCUIApplication) {
         let progressSlider = app.sliders["reader.progress"]
         XCTAssertTrue(progressSlider.waitForExistence(timeout: 3))
-        let initialProgress = progressSlider.value as? String
+        let percentage = app.staticTexts["reader.progress.percentage"]
+        let initialProgress = percentage.label
         progressSlider.adjust(toNormalizedSliderPosition: 0.65)
         let progressChanged = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "value != %@", initialProgress ?? ""),
-            object: progressSlider
+            predicate: NSPredicate(format: "label != %@", initialProgress),
+            object: percentage
         )
         wait(for: [progressChanged], timeout: 8)
 
         progressSlider.adjust(toNormalizedSliderPosition: 1)
         let reachedEnd = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "value == %@", "100%"),
-            object: progressSlider
+            predicate: NSPredicate(format: "label == %@", "100%"),
+            object: percentage
         )
         wait(for: [reachedEnd], timeout: 8)
 
         progressSlider.adjust(toNormalizedSliderPosition: 0.65)
         let returnedFromEnd = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "value != %@", "100%"),
-            object: progressSlider
+            predicate: NSPredicate(format: "label != %@", "100%"),
+            object: percentage
         )
         wait(for: [returnedFromEnd], timeout: 8)
-    }
-
-    @MainActor
-    private func revealReaderChrome(in app: XCUIApplication, visibleControl: XCUIElement) {
-        let navigator = app.otherElements["reader.navigator"]
-        if visibleControl.exists {
-            navigator.tap()
-            XCTAssertTrue(visibleControl.waitForNonExistence(timeout: 3))
-        }
-        navigator.tap()
-        XCTAssertTrue(visibleControl.waitForExistence(timeout: 3))
     }
 }
 

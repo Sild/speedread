@@ -268,11 +268,11 @@ final class SpeedReadUITests: XCTestCase {
         XCTAssertTrue(app.buttons["reader.toc"].exists)
         XCTAssertTrue(app.buttons["reader.appearance"].exists)
         XCTAssertTrue(app.buttons["reader.mode.speed"].exists)
-        exerciseSpeedReader(in: app)
+        try exerciseSpeedReader(in: app)
         XCTAssertTrue(app.otherElements["reader.navigator"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["reader.toc"].waitForExistence(timeout: 3))
-        assertSpeedPositionAfterReopening(in: app)
-        assertRegularReaderControls(in: app)
+        try assertSpeedPositionAfterReopening(in: app)
+        try assertRegularReaderControls(in: app)
     }
 
     @MainActor
@@ -285,29 +285,28 @@ final class SpeedReadUITests: XCTestCase {
         let slider = app.sliders["reader.progress"]
         XCTAssertTrue(slider.waitForExistence(timeout: 8))
         let initialValue = slider.value as? String
+        let percentage = app.staticTexts["reader.progress.percentage"]
+        let initialPercentage = percentage.label
         slider.adjust(toNormalizedSliderPosition: 0.65)
-        let progressChanged = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "value != %@", initialValue ?? ""),
-            object: slider
+        let seekCompleted = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label != %@", initialPercentage),
+            object: percentage
         )
-        wait(for: [progressChanged], timeout: 8)
+        wait(for: [seekCompleted], timeout: 8)
+        XCTAssertNotEqual(slider.value as? String, initialValue)
 
-        let back = app.buttons["reader.back"]
-        if !back.exists {
-            app.otherElements["reader.navigator"].tap()
-        }
-        XCTAssertTrue(back.waitForExistence(timeout: 3))
+        let back = try requireReaderControl("reader.back", in: app)
         back.tap()
         XCTAssertTrue(book.waitForExistence(timeout: 5))
 
         book.tap()
         XCTAssertTrue(slider.waitForExistence(timeout: 8))
-        XCTAssertNotEqual(slider.value as? String, "0%")
-        if !back.exists {
-            app.otherElements["reader.navigator"].tap()
-        }
-        XCTAssertTrue(back.waitForExistence(timeout: 3))
-        back.tap()
+        let restoredProgress = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "value != %@", "0%"),
+            object: slider
+        )
+        wait(for: [restoredProgress], timeout: 8)
+        try requireReaderControl("reader.back", in: app).tap()
         XCTAssertTrue(book.waitForExistence(timeout: 5))
         book.press(forDuration: 1)
         XCTAssertTrue(app.buttons["library.share"].waitForExistence(timeout: 3))
@@ -437,13 +436,12 @@ private extension SpeedReadUITests {
         return book
     }
 
-    func assertSpeedPositionAfterReopening(in app: XCUIApplication) {
+    func assertSpeedPositionAfterReopening(in app: XCUIApplication) throws {
         app.buttons["reader.back"].tap()
         let book = button(containing: "Путешествие Swift", in: app)
         XCTAssertTrue(book.waitForExistence(timeout: 5))
         book.tap()
-        XCTAssertTrue(app.otherElements["reader.navigator"].waitForExistence(timeout: 8))
-        app.buttons["reader.mode.speed"].tap()
+        try requireReaderControl("reader.mode.speed", in: app).tap()
         XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
         app.buttons["reader.mode.regular"].tap()
         let navigator = app.otherElements["reader.navigator"]
@@ -451,13 +449,11 @@ private extension SpeedReadUITests {
         XCTAssertEqual(navigator.value as? String, "сохраняет")
     }
 
-    func assertRegularReaderControls(in app: XCUIApplication) {
-        app.buttons["reader.toc"].tap()
+    func assertRegularReaderControls(in app: XCUIApplication) throws {
+        try requireReaderControl("reader.toc", in: app).tap()
         XCTAssertTrue(app.buttons["Глава первая"].waitForExistence(timeout: 3))
         app.buttons["reader.toc.close"].tap()
-        app.otherElements["reader.navigator"].tap()
-        XCTAssertTrue(app.buttons["reader.appearance"].waitForExistence(timeout: 3))
-        app.buttons["reader.appearance"].tap()
+        try requireReaderControl("reader.appearance", in: app).tap()
         XCTAssertTrue(app.switches["reader.appearance.scroll"].waitForExistence(timeout: 3))
     }
 }

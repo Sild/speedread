@@ -8,7 +8,7 @@
     }
   ],
   "defaultOptions" : {
-    "codeCoverage" : true,
+    "codeCoverage" : false,
     "targetForVariableExpansion" : {
       "containerPath" : "container:SpeedRead.xcodeproj",
       "identifier" : "2FA3D0A7146CBEE59F8BDA78",
