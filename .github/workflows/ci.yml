@@ -15,8 +15,8 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: macos-26
-    timeout-minutes: 20
+    runs-on: macos-26-intel
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -75,7 +75,15 @@ jobs:
 
       - name: Select Xcode 26.6
         if: steps.changes.outputs.run_xcode == 'true'
-        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+        run: |
+          xcode_path=/Applications/Xcode_26.6.app/Contents/Developer
+          if [[ ! -d "$xcode_path" ]]; then
+            echo "::error::Xcode 26.6 is unavailable on this runner."
+            find /Applications -maxdepth 1 -name 'Xcode*.app' -print
+            exit 1
+          fi
+          sudo xcode-select --switch "$xcode_path"
+          xcodebuild -version
 
       - name: Install pinned tools
         if: steps.changes.outputs.run_xcode == 'true'
@@ -100,7 +108,7 @@ jobs:
 
       - name: Start simulator
         if: steps.changes.outputs.run_xcode == 'true'
-        timeout-minutes: 3
+        timeout-minutes: 4
         run: |
           started=$SECONDS
           simulator_udid="$(
@@ -141,7 +149,7 @@ jobs:
 
       - name: Build tests
         if: steps.changes.outputs.run_xcode == 'true'
-        timeout-minutes: 7
+        timeout-minutes: 10
         run: |
           started=$SECONDS
           DESTINATION="platform=iOS Simulator,id=$SPEEDREAD_SIMULATOR_UDID" \
@@ -150,7 +158,7 @@ jobs:
 
       - name: Run iOS integration tests
         if: steps.changes.outputs.run_xcode == 'true'
-        timeout-minutes: 5
+        timeout-minutes: 7
         run: |
           started=$SECONDS
           xcrun simctl bootstatus "$SPEEDREAD_SIMULATOR_UDID" -b
@@ -171,7 +179,7 @@ jobs:
 
       - name: Run four UI journeys
         if: steps.changes.outputs.run_xcode == 'true'
-        timeout-minutes: 5
+        timeout-minutes: 7
         run: |
           mkdir -p .build/TestResults
           DESTINATION="platform=iOS Simulator,id=$SPEEDREAD_SIMULATOR_UDID" \

@@ -75,16 +75,6 @@ capture_device() {
 capture_device "$iphone_name" iPhone-6.9
 capture_device "$ipad_name" iPad-13
 
-command -v sips >/dev/null || {
-    print -u2 -- "sips is unavailable; iPad screenshots cannot be normalized to landscape."
-    exit 2
-}
-for screenshot in "$staging_root/iPad-13"/*.png; do
-    rotated="${screenshot:r}-rotated.png"
-    sips --rotate 270 "$screenshot" --out "$rotated" >/dev/null
-    mv "$rotated" "$screenshot"
-done
-
 /usr/bin/python3 "$root_dir/Tools/app_store_submission.py" check \
     --root "$root_dir" \
     --screenshots-root "$staging_root"

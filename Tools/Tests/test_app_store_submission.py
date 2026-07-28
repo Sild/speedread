@@ -141,6 +141,18 @@ class AppStoreSubmissionTests(unittest.TestCase):
                 write_png_header(root / name, 1320, 2868)
             SUBJECT.validate_screenshot_set(root, {(1320, 2868)}, expected_names)
 
+    def test_accepts_native_portrait_ipad_screenshot_set(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected_names = SUBJECT.EXPECTED_SCREENSHOT_NAMES["iPad-13"]
+            for name in expected_names:
+                write_png_header(root / name, 2064, 2752)
+            SUBJECT.validate_screenshot_set(
+                root,
+                SUBJECT.SCREENSHOT_SETS["iPad-13"],
+                expected_names,
+            )
+
     def test_rejects_alpha_channel(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -5,8 +5,8 @@
 SpeedRead helps people keep a private ebook library and move seamlessly
 between comfortable regular reading and visually focused speed reading.
 
-The MVP is TestFlight-ready, offline-first, and supports iPhone and iPad on
-iOS/iPadOS 17 or newer.
+The app is available on the App Store, remains offline-first, and supports
+iPhone and iPad on iOS/iPadOS 17 or newer.
 
 ## Primary Journeys
 

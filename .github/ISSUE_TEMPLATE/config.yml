@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/Sild/speedread/security/policy
+    about: Report security issues privately using the security policy.
+  - name: Support
+    url: https://sild.github.io/speedread/support.html
+    about: Get help using SpeedRead.
