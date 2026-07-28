@@ -56,30 +56,62 @@ jobs:
           echo "| Native logic tests | Passed | 17 | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Start simulator
-        timeout-minutes: 2
+        timeout-minutes: 3
         run: |
           started=$SECONDS
           xcrun simctl bootstatus "iPhone 17 Pro" -b
+          simulator_udid="$(
+            xcrun simctl list devices booted -j | /usr/bin/python3 -c '
+          import json
+          import sys
+
+          devices = [
+              device
+              for runtime_devices in json.load(sys.stdin)["devices"].values()
+              for device in runtime_devices
+              if device["name"] == "iPhone 17 Pro"
+          ]
+          if len(devices) != 1:
+              raise SystemExit(f"Expected one booted iPhone 17 Pro, found {len(devices)}")
+          print(devices[0]["udid"])
+          '
+          )"
+          echo "SPEEDREAD_SIMULATOR_UDID=$simulator_udid" >> "$GITHUB_ENV"
           echo "| Simulator startup | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build tests
-        timeout-minutes: 6
+        timeout-minutes: 7
         run: |
           started=$SECONDS
-          make build-for-testing
+          DESTINATION="platform=iOS Simulator,id=$SPEEDREAD_SIMULATOR_UDID" \
+            make build-for-testing
           echo "| Build for testing | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run all iOS integration tests
         timeout-minutes: 5
         run: |
           started=$SECONDS
-          make unit-test-without-building
+          xcrun simctl bootstatus "$SPEEDREAD_SIMULATOR_UDID" -b
+          mkdir -p .build/TestResults
+          DESTINATION="platform=iOS Simulator,id=$SPEEDREAD_SIMULATOR_UDID" \
+          INTEGRATION_RESULT_BUNDLE=.build/TestResults/FullIntegration.xcresult \
+            make unit-test-without-building
           echo "| All iOS integration tests | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain failed integration results
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: full-integration-xcresult-${{ github.run_attempt }}
+          path: .build/TestResults/FullIntegration.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Run all UI and screenshot tests
         timeout-minutes: 10
         run: |
           mkdir -p .build/TestResults
+          DESTINATION="platform=iOS Simulator,id=$SPEEDREAD_SIMULATOR_UDID" \
           UI_RETRY=YES \
           UI_RESULT_BUNDLE=.build/TestResults/FullUI.xcresult \
             make ui-test-without-building

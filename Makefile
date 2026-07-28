@@ -18,6 +18,7 @@ TEST ?=
 UI_TEST ?=
 UI_RETRY ?= NO
 UI_RESULT_BUNDLE ?=
+INTEGRATION_RESULT_BUNDLE ?=
 APP_STORE_SCREENSHOTS ?= AppStore/Screenshots
 IPHONE_SCREENSHOT_SIMULATOR ?= iPhone 17 Pro Max
 IPAD_SCREENSHOT_SIMULATOR ?= iPad Pro 13-inch (M5)
@@ -26,6 +27,7 @@ export PATH := $(TOOLS_BIN):$(PATH)
 
 UI_RETRY_OPTIONS = $(if $(filter YES yes true 1,$(UI_RETRY)),-retry-tests-on-failure -test-iterations 2,)
 UI_RESULT_OPTIONS = $(if $(UI_RESULT_BUNDLE),-resultBundlePath $(UI_RESULT_BUNDLE),)
+INTEGRATION_RESULT_OPTIONS = $(if $(INTEGRATION_RESULT_BUNDLE),-resultBundlePath $(INTEGRATION_RESULT_BUNDLE),)
 
 .PHONY: bootstrap fixtures generate format format-check lint tooling-check build build-for-testing test unit-test unit-test-without-building
 .PHONY: logic-test test-one ui-test ui-smoke ui-test-without-building device-deploy project-check archive-check ci ci-fast version-check
@@ -85,6 +87,7 @@ unit-test-without-building:
 		-testPlan SpeedReadUnit \
 		-destination '$(DESTINATION)' \
 		-derivedDataPath $(DERIVED_DATA) \
+		$(INTEGRATION_RESULT_OPTIONS) \
 		CODE_SIGNING_ALLOWED=NO
 
 logic-test:
