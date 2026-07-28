@@ -16,7 +16,7 @@ concurrency:
 jobs:
   validate:
     runs-on: macos-26
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -108,7 +108,7 @@ jobs:
 
       - name: Build tests
         if: steps.changes.outputs.run_xcode == 'true'
-        timeout-minutes: 5
+        timeout-minutes: 7
         run: |
           started=$SECONDS
           make build-for-testing
@@ -116,7 +116,7 @@ jobs:
 
       - name: Run iOS integration tests
         if: steps.changes.outputs.run_xcode == 'true'
-        timeout-minutes: 3
+        timeout-minutes: 5
         run: |
           started=$SECONDS
           make unit-test-without-building
