@@ -108,14 +108,30 @@ jobs:
           import json
           import sys
 
-          devices = [
-              device
-              for runtime_devices in json.load(sys.stdin)["devices"].values()
+          matches = [
+              (runtime, device)
+              for runtime, runtime_devices in json.load(sys.stdin)["devices"].items()
               for device in runtime_devices
               if device["name"] == "iPhone 17 Pro"
           ]
+          if not matches:
+              raise SystemExit("No available iPhone 17 Pro found")
+          latest_runtime = max(
+              [runtime for runtime, _ in matches],
+              key=lambda runtime: tuple(
+                  int(component)
+                  for component in runtime.rsplit("iOS-", 1)[1].split("-")
+              ),
+          )
+          devices = [
+              device
+              for runtime, device in matches
+              if runtime == latest_runtime
+          ]
           if len(devices) != 1:
-              raise SystemExit(f"Expected one available iPhone 17 Pro, found {len(devices)}")
+              raise SystemExit(
+                  f"Expected one iPhone 17 Pro for {latest_runtime}, found {len(devices)}"
+              )
           print(devices[0]["udid"])
           '
           )"
