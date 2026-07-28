@@ -11,6 +11,9 @@ DERIVED_DATA ?= .build/DerivedData
 LOGIC_DERIVED_DATA ?= .build/LogicDerivedData
 ARCHIVE_PATH ?= .build/SpeedRead.xcarchive
 TOOLS_BIN ?= $(abspath .build/tools/bin)
+XCODEGEN ?= $(TOOLS_BIN)/xcodegen
+SWIFTFORMAT ?= $(TOOLS_BIN)/swiftformat
+SWIFTLINT ?= $(TOOLS_BIN)/swiftlint
 TEST ?=
 UI_TEST ?=
 UI_RETRY ?= NO
@@ -38,16 +41,16 @@ fixtures:
 	./Tools/build_fixtures.sh
 
 generate:
-	xcodegen generate
+	$(XCODEGEN) generate
 
 format:
-	swiftformat SpeedRead SpeedReadLogicTests SpeedReadTests SpeedReadUITests
+	$(SWIFTFORMAT) SpeedRead SpeedReadLogicTests SpeedReadTests SpeedReadUITests
 
 format-check:
-	swiftformat SpeedRead SpeedReadLogicTests SpeedReadTests SpeedReadUITests --lint
+	$(SWIFTFORMAT) SpeedRead SpeedReadLogicTests SpeedReadTests SpeedReadUITests --lint
 
 lint:
-	swiftlint lint --strict
+	$(SWIFTLINT) lint --strict
 
 tooling-check:
 	/usr/bin/python3 Tools/Tests/test_summarize_xcresult.py
@@ -206,7 +209,7 @@ app-store-screenshots:
 		./Tools/capture_app_store_screenshots.sh
 
 project-check:
-	xcodegen generate
+	$(XCODEGEN) generate
 	git diff --exit-code -- $(PROJECT)
 
 archive-check:
