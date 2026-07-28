@@ -59,9 +59,8 @@ jobs:
         timeout-minutes: 3
         run: |
           started=$SECONDS
-          xcrun simctl bootstatus "iPhone 17 Pro" -b
           simulator_udid="$(
-            xcrun simctl list devices booted -j | /usr/bin/python3 -c '
+            xcrun simctl list devices available -j | /usr/bin/python3 -c '
           import json
           import sys
 
@@ -72,10 +71,11 @@ jobs:
               if device["name"] == "iPhone 17 Pro"
           ]
           if len(devices) != 1:
-              raise SystemExit(f"Expected one booted iPhone 17 Pro, found {len(devices)}")
+              raise SystemExit(f"Expected one available iPhone 17 Pro, found {len(devices)}")
           print(devices[0]["udid"])
           '
           )"
+          xcrun simctl bootstatus "$simulator_udid" -b
           echo "SPEEDREAD_SIMULATOR_UDID=$simulator_udid" >> "$GITHUB_ENV"
           echo "| Simulator startup | Passed | - | $((SECONDS - started))s |" >> "$GITHUB_STEP_SUMMARY"
 
