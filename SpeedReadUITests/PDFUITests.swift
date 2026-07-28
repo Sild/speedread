@@ -28,7 +28,7 @@ final class PDFUITests: XCTestCase {
         book.tap()
 
         XCTAssertTrue(app.otherElements["reader.navigator"].waitForExistence(timeout: 8))
-        scrubRegularReaderProgress(in: app)
+        try scrubRegularReaderProgress(in: app)
 
         let appearanceButton = try requireReaderControl("reader.appearance", in: app)
         appearanceButton.tap()
@@ -55,9 +55,8 @@ final class PDFUITests: XCTestCase {
     }
 
     @MainActor
-    private func scrubRegularReaderProgress(in app: XCUIApplication) {
-        let progressSlider = app.sliders["reader.progress"]
-        XCTAssertTrue(progressSlider.waitForExistence(timeout: 3))
+    private func scrubRegularReaderProgress(in app: XCUIApplication) throws {
+        let progressSlider = try requireProgressSlider(in: app)
         let percentage = app.staticTexts["reader.progress.percentage"]
         let initialProgress = percentage.label
         progressSlider.adjust(toNormalizedSliderPosition: 0.65)
@@ -67,19 +66,29 @@ final class PDFUITests: XCTestCase {
         )
         wait(for: [progressChanged], timeout: 8)
 
-        progressSlider.adjust(toNormalizedSliderPosition: 1)
+        try requireProgressSlider(in: app).adjust(toNormalizedSliderPosition: 1)
         let reachedEnd = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "label == %@", "100%"),
             object: percentage
         )
         wait(for: [reachedEnd], timeout: 8)
 
-        progressSlider.adjust(toNormalizedSliderPosition: 0.65)
+        try requireProgressSlider(in: app).adjust(toNormalizedSliderPosition: 0.65)
         let returnedFromEnd = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "label != %@", "100%"),
             object: percentage
         )
         wait(for: [returnedFromEnd], timeout: 8)
+    }
+
+    @MainActor
+    private func requireProgressSlider(in app: XCUIApplication) throws -> XCUIElement {
+        _ = try requireReaderControl("reader.mode.speed", in: app)
+        return try requireExistence(
+            app.sliders["reader.progress"],
+            timeout: 3,
+            message: "Reader progress slider did not become ready"
+        )
     }
 }
 

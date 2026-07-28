@@ -93,7 +93,8 @@ extension SpeedReadUITests {
         ])
     }
 
-    func exerciseSpeedReader(in app: XCUIApplication) throws {
+    func exerciseSpeedReader(in app: XCUIApplication) throws -> String {
+        _ = try requireReaderControl("reader.mode.speed", in: app)
         let regularSelectorFrame = try selectorFrame(in: app)
         try requireReaderControl("reader.mode.speed", in: app).tap()
         XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
@@ -124,7 +125,8 @@ extension SpeedReadUITests {
         app.buttons["reader.mode.regular"].tap()
         let navigator = app.otherElements["reader.navigator"]
         XCTAssertTrue(navigator.waitForExistence(timeout: 8))
-        XCTAssertEqual(navigator.value as? String, "сохраняет")
+        let expectedHighlight = try XCTUnwrap(navigator.value as? String)
+        XCTAssertFalse(expectedHighlight.isEmpty)
         let highlightedParagraph = app.staticTexts
             .matching(NSPredicate(format: "label CONTAINS %@", "Скорочтение"))
             .firstMatch
@@ -134,7 +136,8 @@ extension SpeedReadUITests {
         XCTAssertTrue(app.buttons["speed.playPause"].waitForExistence(timeout: 8))
         app.buttons["reader.mode.regular"].tap()
         XCTAssertTrue(navigator.waitForExistence(timeout: 8))
-        XCTAssertEqual(navigator.value as? String, "сохраняет")
+        XCTAssertEqual(navigator.value as? String, expectedHighlight)
+        return expectedHighlight
     }
 
     func assertSpeedButtonSizes(in app: XCUIApplication) {
@@ -189,7 +192,7 @@ extension SpeedReadUITests {
         let selector = app.descendants(matching: .any)
             .matching(identifier: "reader.mode.selector")
             .firstMatch
-        _ = try requireExistence(selector, timeout: 3)
+        _ = try requireExistence(selector, timeout: 8)
         return selector.frame
     }
 

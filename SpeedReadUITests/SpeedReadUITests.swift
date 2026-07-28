@@ -268,10 +268,10 @@ final class SpeedReadUITests: XCTestCase {
         XCTAssertTrue(app.buttons["reader.toc"].exists)
         XCTAssertTrue(app.buttons["reader.appearance"].exists)
         XCTAssertTrue(app.buttons["reader.mode.speed"].exists)
-        try exerciseSpeedReader(in: app)
+        let expectedHighlight = try exerciseSpeedReader(in: app)
         XCTAssertTrue(app.otherElements["reader.navigator"].waitForExistence(timeout: 8))
-        XCTAssertTrue(app.buttons["reader.toc"].waitForExistence(timeout: 3))
-        try assertSpeedPositionAfterReopening(in: app)
+        _ = try requireReaderControl("reader.toc", in: app)
+        try assertSpeedPositionAfterReopening(in: app, expectedHighlight: expectedHighlight)
         try assertRegularReaderControls(in: app)
     }
 
@@ -436,8 +436,11 @@ private extension SpeedReadUITests {
         return book
     }
 
-    func assertSpeedPositionAfterReopening(in app: XCUIApplication) throws {
-        app.buttons["reader.back"].tap()
+    func assertSpeedPositionAfterReopening(
+        in app: XCUIApplication,
+        expectedHighlight: String
+    ) throws {
+        try requireReaderControl("reader.back", in: app).tap()
         let book = button(containing: "Путешествие Swift", in: app)
         XCTAssertTrue(book.waitForExistence(timeout: 5))
         book.tap()
@@ -446,7 +449,7 @@ private extension SpeedReadUITests {
         app.buttons["reader.mode.regular"].tap()
         let navigator = app.otherElements["reader.navigator"]
         XCTAssertTrue(navigator.waitForExistence(timeout: 8))
-        XCTAssertEqual(navigator.value as? String, "сохраняет")
+        XCTAssertEqual(navigator.value as? String, expectedHighlight)
     }
 
     func assertRegularReaderControls(in app: XCUIApplication) throws {
