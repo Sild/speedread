@@ -87,6 +87,7 @@ unit-test-without-building:
 		-testPlan SpeedReadUnit \
 		-destination '$(DESTINATION)' \
 		-derivedDataPath $(DERIVED_DATA) \
+		-parallel-testing-enabled NO \
 		$(INTEGRATION_RESULT_OPTIONS) \
 		CODE_SIGNING_ALLOWED=NO
 
