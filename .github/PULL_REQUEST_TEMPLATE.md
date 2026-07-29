@@ -10,6 +10,6 @@ List the commands and manual checks that ran.
 
 - [ ] The change is focused and preserves unrelated behavior.
 - [ ] Tests cover project-owned behavior where appropriate.
-- [ ] `make format-check` and `make lint` pass.
+- [ ] `cd apple && make format-check && make lint` pass.
 - [ ] Generated Xcode project output is unchanged, or the change is intentional.
 - [ ] Documentation and accessibility behavior are updated where needed.

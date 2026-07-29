@@ -19,24 +19,27 @@ SpeedRead requires macOS, Xcode 26.6, and an iOS simulator runtime. Bootstrap
 the pinned command-line tools and generate the project:
 
 ```sh
+cd apple
 make bootstrap
 make generate
 ```
 
-`project.yml` is the source of truth for `SpeedRead.xcodeproj`. Project
-generation must not leave an unreviewed diff.
+`apple/project.yml` is the source of truth for
+`apple/SpeedRead.xcodeproj`. Project generation must not leave an unreviewed
+diff.
 
 ## Making a change
 
 Keep changes focused and follow the architecture, concurrency, data, testing,
-and accessibility rules in [AGENTS.md](AGENTS.md). Add deterministic tests for
-project-owned behavior and failure paths. Do not add analytics, advertising,
-accounts, or a custom backend.
+and accessibility rules in [apple/AGENTS.md](apple/AGENTS.md). Add deterministic
+tests for project-owned behavior and failure paths. Do not add analytics,
+advertising, accounts, or a custom backend.
 
 Use the narrowest relevant checks while developing. Before opening a pull
 request, run:
 
 ```sh
+cd apple
 make format-check
 make lint
 make test

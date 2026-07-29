@@ -17,6 +17,9 @@ jobs:
   validate:
     runs-on: macos-26-intel
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apple
 
     steps:
       - name: Check out repository
@@ -26,6 +29,7 @@ jobs:
 
       - name: Classify changed files
         id: changes
+        working-directory: .
         env:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE_SHA: ${{ github.event.before }}
@@ -40,7 +44,7 @@ jobs:
           if [[ -n "$base" && ! "$base" =~ ^0+$ ]] && git cat-file -e "$base^{commit}"; then
             run_xcode=false
             while IFS= read -r path; do
-              if [[ ! "$path" =~ ^(AppStore/|docs/|AGENTS\.md$|README\.md$|ROADMAP\.md$|LICENSE) ]]; then
+              if [[ ! "$path" =~ ^(apple/AppStore/|apple/docs/|apple/AGENTS\.md$|apple/README\.md$|apple/ROADMAP\.md$|docs/|README\.md$|LICENSE$) ]]; then
                 run_xcode=true
                 break
               fi
@@ -70,7 +74,7 @@ jobs:
         if: steps.changes.outputs.run_xcode == 'true'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: .build/tools
+          path: apple/.build/tools
           key: speedread-tools-${{ runner.os }}-${{ steps.tool-versions.outputs.key }}
 
       - name: Select Xcode 26.6
@@ -173,7 +177,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: fast-integration-xcresult-${{ github.run_attempt }}
-          path: .build/TestResults/FastIntegration.xcresult
+          path: apple/.build/TestResults/FastIntegration.xcresult
           if-no-files-found: ignore
           retention-days: 7
 
@@ -204,6 +208,6 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: fast-ui-xcresult-${{ github.run_attempt }}
-          path: .build/TestResults/FastUI.xcresult
+          path: apple/.build/TestResults/FastUI.xcresult
           if-no-files-found: ignore
           retention-days: 7

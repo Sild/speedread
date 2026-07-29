@@ -413,7 +413,7 @@ def require_storekit_localization(
     )
 
 
-def validate_metadata(root: Path) -> None:
+def validate_metadata(root: Path, public_docs_root: Optional[Path] = None) -> None:
     validate_monetization(root)
     metadata_path = root / "AppStore/metadata.json"
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -469,9 +469,10 @@ def validate_metadata(root: Path) -> None:
     require(info.get("CFBundleVersion") == "$(CURRENT_PROJECT_VERSION)", "Info.plist build drift")
     require(info.get("ITSAppUsesNonExemptEncryption") is False, "Info.plist encryption flag drift")
 
+    docs_root = public_docs_root or root / "docs"
     for page, required_text in (
-        (root / "docs/support.html", "SpeedRead Support"),
-        (root / "docs/privacy.html", "SpeedRead Privacy Policy"),
+        (docs_root / "support.html", "SpeedRead Support"),
+        (docs_root / "privacy.html", "SpeedRead Privacy Policy"),
     ):
         source = page.read_text(encoding="utf-8")
         require(required_text in source, f"{page}: missing page title")
@@ -554,7 +555,7 @@ def validate_screenshot_set(
 
 
 def check_submission(args: argparse.Namespace) -> None:
-    validate_metadata(args.root)
+    validate_metadata(args.root, args.public_docs_root)
     for directory, dimensions in SCREENSHOT_SETS.items():
         validate_screenshot_set(
             args.screenshots_root / directory,
@@ -578,6 +579,7 @@ def parse_arguments() -> argparse.Namespace:
 
     check = subparsers.add_parser("check", help="verify metadata, pages, icon, and screenshots")
     check.add_argument("--root", type=Path, required=True)
+    check.add_argument("--public-docs-root", type=Path)
     check.add_argument("--screenshots-root", type=Path, required=True)
 
     live_check = subparsers.add_parser("live-check", help="verify the published support and privacy pages")

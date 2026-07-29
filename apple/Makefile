@@ -200,6 +200,7 @@ app-store-check:
 	/usr/bin/python3 Tools/Tests/test_app_store_submission.py
 	/usr/bin/python3 Tools/app_store_submission.py check \
 		--root . \
+		--public-docs-root ../docs \
 		--screenshots-root $(APP_STORE_SCREENSHOTS)
 
 app-store-live-check:
