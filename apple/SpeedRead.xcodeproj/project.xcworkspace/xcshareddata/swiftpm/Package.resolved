@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/readium/Fuzi.git",
       "state" : {
-        "revision" : "347aab158ff8894966ff80469b384bb5337928cd",
-        "version" : "4.0.0"
+        "revision" : "173ec944ca6f2e8024ceb7324bcb8a3cc95a0661",
+        "version" : "4.0.1"
       }
     },
     {
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/scinfu/SwiftSoup.git",
       "state" : {
-        "revision" : "ead56133a693d0184d8c2db1a6d6394410cacfd6",
-        "version" : "2.13.6"
+        "revision" : "8d6ad267714cac3ae747cefdd21f7a6665006e1f",
+        "version" : "2.13.7"
       }
     },
     {
